@@ -1,5 +1,8 @@
 import { Modal, App, ButtonComponent, Setting } from "obsidian";
 import type AgentClientPlugin from "../plugin";
+import { getAgentInstallCommand } from "../shared/agent-installer";
+import { spawn } from "child_process";
+import { Platform } from "obsidian";
 
 interface AgentOption {
 	id: string;
@@ -136,7 +139,7 @@ export class OnboardingModal extends Modal {
 		settings.baseUrl = this.baseUrl.trim() || "https://chat.ultimateai.org";
 		settings.autoInstallAgents = true;
 
-		// Configure selected agent
+		// Configure selected agent command (after npm install, should be in PATH)
 		if (this.selectedAgent) {
 			settings.activeAgentId = this.selectedAgent.id;
 			if (this.selectedAgent.id === "claude-code-acp") {
@@ -266,24 +269,24 @@ export class OnboardingModal extends Modal {
 			cls: "obsidianaitools-onboarding-tip",
 		});
 
-		this.addNavigation("Install & Connect →", "Back", true);
+		this.addNavigation("Install & Connect →", "Back", true, true);
 	}
 
 	private renderStep4() {
-		// Installing
-		this.stepContainer.createEl("h3", { text: "Setting Up" });
+		// Ready
+		this.stepContainer.createEl("h3", { text: "You're All Set!" });
 
 		this.stepContainer.createEl("p", {
-			text: `Installing ${this.selectedAgent?.name}...`,
+			text: `${this.selectedAgent?.name} has been installed and configured.`,
 		});
 
 		const statusDiv = this.stepContainer.createDiv({
 			cls: "obsidianaitools-onboarding-status",
 		});
 
-		statusDiv.createEl("p", { text: "✓ Installing agent package via npm..." });
-		statusDiv.createEl("p", { text: "✓ Configuring settings..." });
-		statusDiv.createEl("p", { text: "✓ Ready to connect!" });
+		statusDiv.createEl("p", { text: `✓ ${this.selectedAgent?.name} installed` });
+		statusDiv.createEl("p", { text: "✓ API key configured" });
+		statusDiv.createEl("p", { text: "✓ Base URL configured" });
 
 		this.stepContainer.createEl("p", {
 			text: "Click 'Start Chatting' to begin:",
@@ -297,6 +300,7 @@ export class OnboardingModal extends Modal {
 		nextText: string,
 		backText?: string,
 		isPrimary = false,
+		triggerInstall = false,
 	) {
 		const navContainer = this.stepContainer.createDiv({
 			cls: "obsidianaitools-onboarding-nav",
@@ -312,12 +316,88 @@ export class OnboardingModal extends Modal {
 		}
 
 		const btn = new ButtonComponent(navContainer)
-			.setButtonText(nextText)
-			.onClick(() => {
-				this.nextStep();
+			.setButtonText(triggerInstall ? "Installing..." : nextText)
+			.setDisabled(triggerInstall)
+			.onClick(async () => {
+				if (triggerInstall && this.selectedAgent) {
+					// Run installation
+					btn.setButtonText("Installing...");
+					btn.setDisabled(true);
+
+					const installed = await this.installAgent(
+						this.selectedAgent,
+					);
+
+					if (installed) {
+						// Save settings and proceed
+						this.saveSettings();
+						this.currentStep++;
+						this.renderCurrentStep();
+					} else {
+						btn.setButtonText("Installation failed - Retry");
+						btn.setDisabled(false);
+					}
+				} else {
+					this.nextStep();
+				}
 			});
 		if (isPrimary) {
 			btn.setCta();
 		}
+	}
+
+	private async installAgent(agent: AgentOption): Promise<boolean> {
+		const installCommand = getAgentInstallCommand(agent.id);
+		if (!installCommand) return false;
+
+		const packageName = installCommand.replace("npm install -g ", "");
+		const nodePath = this.plugin.settings.nodePath;
+		const nodeDir = nodePath.trim()
+			? nodePath.trim().replace(/\/node$/, "")
+			: "";
+		const npmExec = nodeDir ? `${nodeDir}/npm` : "npm";
+
+		return new Promise((resolve) => {
+			let command: string;
+			let args: string[];
+			const installArgs = `${npmExec} install -g ${packageName}`;
+
+			if (Platform.isWin) {
+				command = "cmd.exe";
+				args = ["/c", installArgs];
+			} else {
+				command = "/bin/bash";
+				args = ["-l", "-c", installArgs];
+			}
+
+			console.warn(`[Onboarding] Installing ${agent.name}...`);
+
+			const child = spawn(command, args, {
+				stdio: "inherit",
+				env: {
+					...process.env,
+					...(nodeDir && !Platform.isWin
+						? { PATH: `${nodeDir}:${process.env.PATH || ""}` }
+						: {}),
+				},
+			});
+
+			child.on("close", (code: number) => {
+				if (code === 0) {
+					console.warn(`[Onboarding] Successfully installed ${agent.name}`);
+					resolve(true);
+				} else {
+					console.error(
+						`[Onboarding] Failed to install ${agent.name} (exit code: ${code})`,
+					);
+					resolve(false);
+				}
+			});
+
+			child.on("error", (error) => {
+				console.error(`[Onboarding] Error installing ${agent.name}:`, error);
+				resolve(false);
+			});
+		});
 	}
 }
