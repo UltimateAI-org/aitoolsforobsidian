@@ -490,15 +490,7 @@ export function useAgentSession(
 				return;
 			}
 
-			// Build AgentConfig with API key injection
-			const agentConfig = buildAgentConfigWithApiKey(
-				settings,
-				agentSettings,
-				activeAgentId,
-				workingDirectory,
-			);
-
-			// Auto-install known agents if command is not configured
+			// Auto-install known agents if command is not configured (do this FIRST)
 			if (
 				settings.autoInstallAgents &&
 				(!agentSettings.command || agentSettings.command.trim().length === 0)
@@ -513,20 +505,19 @@ export function useAgentSession(
 					if (installed) {
 						// Update settings with command path
 						updateAgentCommand(settings, activeAgentId, commandName);
-						// Rebuild agent config with new command
-						const updatedSettings = settingsAccess.getSnapshot();
-						const updatedAgentSettings = findAgentSettings(
-							updatedSettings,
-							activeAgentId,
-						);
-						if (updatedAgentSettings) {
-							Object.assign(agentSettings, {
-								command: commandName,
-							});
-						}
+						// Update the local agentSettings reference
+						agentSettings.command = commandName;
 					}
 				}
 			}
+
+			// Build AgentConfig with API key injection (AFTER auto-install)
+			const agentConfig = buildAgentConfigWithApiKey(
+				settings,
+				agentSettings,
+				activeAgentId,
+				workingDirectory,
+			);
 
 			// Check if initialization is needed
 			// Only initialize if agent is not initialized OR agent ID has changed
