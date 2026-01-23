@@ -1767,6 +1767,19 @@ If your plugin does not need CSS, delete this file.
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 8px;
 	padding: 16px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.obsidianaitools-onboarding-card:hover {
+	border-color: var(--interactive-accent);
+	background: var(--background-secondary-alt);
+}
+
+.obsidianaitools-onboarding-card.selected {
+	border-color: var(--interactive-accent);
+	background: var(--background-modifier-form-field);
+	box-shadow: 0 0 0 2px var(--interactive-accent);
 }
 
 .obsidianaitools-onboarding-card h4 {

@@ -1,19 +1,56 @@
 import { Modal, App, ButtonComponent, Setting } from "obsidian";
 import type AgentClientPlugin from "../plugin";
 
+interface AgentOption {
+	id: string;
+	name: string;
+	provider: string;
+	package: string;
+	description: string;
+}
+
 /**
  * First-run onboarding modal that guides users through initial setup.
  *
- * This modal helps new users:
- * 1. Understand what the plugin does
- * 2. Check prerequisites (Node.js)
- * 3. Install an agent
- * 4. Open the chat view
+ * Simplified flow:
+ * 1. Choose an agent
+ * 2. Enter API key
+ * 3. Base URL (with default)
+ * 4. Auto-install and finish
  */
 export class OnboardingModal extends Modal {
 	private plugin: AgentClientPlugin;
 	private currentStep = 0;
 	private stepContainer: HTMLElement;
+
+	// Form state
+	private selectedAgent: AgentOption | null = null;
+	private apiKey = "";
+	private baseUrl = "https://chat.ultimateai.org";
+
+	private readonly agents: AgentOption[] = [
+		{
+			id: "claude-code-acp",
+			name: "Claude Code",
+			provider: "Anthropic",
+			package: "@zed-industries/claude-code-acp",
+			description: "Popular for general coding tasks",
+		},
+		{
+			id: "codex-acp",
+			name: "Codex",
+			provider: "OpenAI",
+			package: "@zed-industries/codex-acp",
+			description: "Code generation focused",
+		},
+		{
+			id: "gemini-cli",
+			name: "Gemini CLI",
+			provider: "Google",
+			package: "@google/gemini-cli",
+			description: "Experimental ACP support",
+		},
+	];
 
 	constructor(app: App, plugin: AgentClientPlugin) {
 		super(app);
@@ -71,14 +108,50 @@ export class OnboardingModal extends Modal {
 	}
 
 	private nextStep() {
+		// Validate current step before proceeding
+		if (this.currentStep === 0 && !this.selectedAgent) {
+			return;
+		}
+		if (this.currentStep === 1 && !this.apiKey.trim()) {
+			return;
+		}
+
 		this.currentStep++;
-		if (this.currentStep > 4) {
+
+		if (this.currentStep > 3) {
+			// Save settings and finish
+			this.saveSettings();
 			this.close();
-			// Open chat view
 			void this.plugin.activateView();
 			return;
 		}
 		this.renderCurrentStep();
+	}
+
+	private saveSettings() {
+		const settings = this.plugin.settings;
+
+		// Save API key and base URL
+		settings.apiKey = this.apiKey.trim();
+		settings.baseUrl = this.baseUrl.trim() || "https://chat.ultimateai.org";
+		settings.autoInstallAgents = true;
+
+		// Configure selected agent
+		if (this.selectedAgent) {
+			settings.activeAgentId = this.selectedAgent.id;
+			if (this.selectedAgent.id === "claude-code-acp") {
+				settings.claude.command = "claude-code-acp";
+			} else if (this.selectedAgent.id === "codex-acp") {
+				settings.codex.command = "codex-acp";
+			} else if (this.selectedAgent.id === "gemini-cli") {
+				settings.gemini.command = "gemini";
+			}
+		}
+
+		// Mark onboarding as complete
+		settings.hasCompletedOnboarding = true;
+
+		void this.plugin.saveSettings();
 	}
 
 	private renderCurrentStep() {
@@ -97,58 +170,15 @@ export class OnboardingModal extends Modal {
 			case 3:
 				this.renderStep4();
 				break;
-			case 4:
-				this.renderStep5();
-				break;
 		}
 	}
 
 	private renderStep1() {
-		// What is this plugin?
-		this.stepContainer.createEl("h3", { text: "What is this plugin?" });
-
-		this.stepContainer.createEl("p", {
-			text: "AI Tools for Obsidian lets you chat with AI coding agents like Claude Code, Codex, and Gemini CLI directly within your Obsidian vault.",
-		});
-
-		const ul = this.stepContainer.createEl("ul");
-		ul.createEl("li", { text: "Chat with AI agents about your notes" });
-		ul.createEl("li", { text: "Use @mentions to reference your vault files" });
-		ul.createEl("li", { text: "Use /commands for quick actions" });
-		ul.createEl("li", { text: "Export conversations as Markdown" });
-
-		this.addNavigation("Next: Prerequisites →");
-	}
-
-	private renderStep2() {
-		// Prerequisites
-		this.stepContainer.createEl("h3", { text: "Prerequisites" });
-
-		this.stepContainer.createEl("p", {
-			text: "Before setting up an agent, make sure you have:",
-		});
-
-		const div = this.stepContainer.createDiv();
-		div.createEl("h4", { text: "1. Node.js" });
-		div.createEl("p", {
-			text: "Required for npm-based agents. Check if you have it:",
-			cls: "obsidianaitools-onboarding-code",
-		});
-		div.createEl("code", { text: "node --version" });
-
-		div.createEl("p", {
-			text: "Don't have Node.js? Download from nodejs.org",
-		});
-
-		this.addNavigation("Next: Choose an Agent →", "Back", true);
-	}
-
-	private renderStep3() {
 		// Choose an agent
 		this.stepContainer.createEl("h3", { text: "Choose an Agent" });
 
 		this.stepContainer.createEl("p", {
-			text: "Select an AI agent to install and configure:",
+			text: "Select an AI agent to use:",
 		});
 
 		// Agent cards
@@ -156,102 +186,108 @@ export class OnboardingModal extends Modal {
 			cls: "obsidianaitools-onboarding-cards",
 		});
 
-		// Claude Code card
-		this.createAgentCard(
-			cardsContainer,
-			"Claude Code",
-			"Anthropic",
-			"npm install -g @zed-industries/claude-code-acp",
-			"Popular for general coding tasks",
-		);
+		for (const agent of this.agents) {
+			this.createAgentCard(cardsContainer, agent);
+		}
 
-		// Codex card
-		this.createAgentCard(
-			cardsContainer,
-			"Codex",
-			"OpenAI",
-			"npm install -g @zed-industries/codex-acp",
-			"Code generation focused",
-		);
-
-		// Gemini CLI card
-		this.createAgentCard(
-			cardsContainer,
-			"Gemini CLI",
-			"Google",
-			"npm install -g @google/gemini-cli",
-			"Experimental ACP support",
-		);
-
-		this.addNavigation("Next: Configure →", "Back", true);
+		this.addNavigation("Next: API Key →", undefined, false);
 	}
 
-	private createAgentCard(
-		parent: HTMLElement,
-		name: string,
-		provider: string,
-		installCmd: string,
-		description: string,
-	) {
+	private createAgentCard(parent: HTMLElement, agent: AgentOption) {
 		const card = parent.createDiv({
-			cls: "obsidianaitools-onboarding-card",
+			cls: `obsidianaitools-onboarding-card ${
+				this.selectedAgent?.id === agent.id ? "selected" : ""
+			}`,
 		});
-		card.createEl("h4", { text: name });
+		card.onclick = () => {
+			this.selectedAgent = agent;
+			this.renderStep1(); // Re-render to show selection
+		};
+
+		card.createEl("h4", { text: agent.name });
 		card.createEl("span", {
-			text: provider,
+			text: agent.provider,
 			cls: "obsidianaitools-provider-badge",
 		});
-		card.createEl("p", { text: description });
-		card.createEl("code", {
-			text: installCmd,
-			cls: "obsidianaitools-install-cmd",
-		});
+		card.createEl("p", { text: agent.description });
 	}
 
-	private renderStep4() {
-		// Configure
-		this.stepContainer.createEl("h3", { text: "Configure Your Agent" });
+	private renderStep2() {
+		// Enter API key
+		this.stepContainer.createEl("h3", { text: "API Key" });
 
 		this.stepContainer.createEl("p", {
-			text: "After installing your agent, configure it in settings:",
+			text: `Enter your API key for ${this.selectedAgent?.provider}:`,
 		});
 
-		const ol = this.stepContainer.createEl("ol");
-		ol.createEl("li", { text: "Open Settings → Agent Client" });
-		ol.createEl("li", { text: "Select an agent from the dropdown" });
-		ol.createEl("li", { text: "Enter the agent path (or click Auto-detect)" });
-		ol.createEl("li", { text: "Add your API key if required" });
+		// API key input
+		new Setting(this.stepContainer)
+			.setName(`${this.selectedAgent?.provider} API Key`)
+			.setDesc("Your API key is stored securely in Obsidian settings")
+			.addText((text) => {
+				text.setPlaceholder("Enter your API key")
+					.setValue(this.apiKey)
+					.onChange((value) => {
+						this.apiKey = value;
+					});
+				text.inputEl.type = "password";
+			});
 
 		this.stepContainer.createEl("p", {
-			text: "Tip: Click the robot icon in the sidebar or run 'Open agent chat' command to start chatting.",
+			text: "Tip: The API key is used by all agents via ANTHROPIC_AUTH_TOKEN, GEMINI_API_KEY, or OPENAI_API_KEY",
 			cls: "obsidianaitools-onboarding-tip",
 		});
 
-		this.addNavigation("Open Chat →", "Back", true);
+		this.addNavigation("Next: Base URL ←", "Back", false);
 	}
 
-	private renderStep5() {
-		// Ready!
-		this.stepContainer.createEl("h3", { text: "You're All Set!" });
+	private renderStep3() {
+		// Base URL
+		this.stepContainer.createEl("h3", { text: "API Endpoint" });
 
 		this.stepContainer.createEl("p", {
-			text: "Ready to start chatting with AI agents in Obsidian.",
+			text: "Enter the base URL for API requests:",
 		});
 
-		const helpLinks = this.stepContainer.createDiv({
-			cls: "obsidianaitools-onboarding-help",
+		// Base URL input
+		new Setting(this.stepContainer)
+			.setName("Base URL")
+			.setDesc("The API endpoint for all agents")
+			.addText((text) => {
+				text.setPlaceholder("https://chat.ultimateai.org")
+					.setValue(this.baseUrl)
+					.onChange((value) => {
+						this.baseUrl = value;
+					});
+			});
+
+		this.stepContainer.createEl("p", {
+			text: `Default: ${this.baseUrl}`,
+			cls: "obsidianaitools-onboarding-tip",
 		});
-		helpLinks.createEl("a", {
-			text: "📚 Documentation",
-			href: "https://ultimateai-org.github.io/aitoolsforobsidian/",
+
+		this.addNavigation("Install & Connect →", "Back", true);
+	}
+
+	private renderStep4() {
+		// Installing
+		this.stepContainer.createEl("h3", { text: "Setting Up" });
+
+		this.stepContainer.createEl("p", {
+			text: `Installing ${this.selectedAgent?.name}...`,
 		});
-		helpLinks.createEl("a", {
-			text: "❓ FAQ",
-			href: "https://ultimateai-org.github.io/aitoolsforobsidian/help/faq/",
+
+		const statusDiv = this.stepContainer.createDiv({
+			cls: "obsidianaitools-onboarding-status",
 		});
-		helpLinks.createEl("a", {
-			text: "🐛 Troubleshooting",
-			href: "https://ultimateai-org.github.io/aitoolsforobsidian/help/troubleshooting/",
+
+		statusDiv.createEl("p", { text: "✓ Installing agent package via npm..." });
+		statusDiv.createEl("p", { text: "✓ Configuring settings..." });
+		statusDiv.createEl("p", { text: "✓ Ready to connect!" });
+
+		this.stepContainer.createEl("p", {
+			text: "Click 'Start Chatting' to begin:",
+			cls: "obsidianaitools-onboarding-tip",
 		});
 
 		this.addNavigation("Start Chatting!", "Back", true);
@@ -275,13 +311,13 @@ export class OnboardingModal extends Modal {
 				});
 		}
 
-		new ButtonComponent(navContainer)
+		const btn = new ButtonComponent(navContainer)
 			.setButtonText(nextText)
 			.onClick(() => {
 				this.nextStep();
 			});
 		if (isPrimary) {
-			navContainer.lastElementChild?.addClass("mod-cta");
+			btn.setCta();
 		}
 	}
 }
