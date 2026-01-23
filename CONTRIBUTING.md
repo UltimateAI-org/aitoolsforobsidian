@@ -49,10 +49,10 @@ This plugin focuses on **ACP client implementation** + **features that make ACP 
 # Navigate to your vault's plugins directory
 cd /path/to/your/vault/.obsidian/plugins
 
-# Clone the repository as "agent-client"
+# Clone the repository as "obsidianaitools"
 # The directory name must match the id in manifest.json
-git clone https://github.com/UltimateAI-org/aitoolsforobsidian.git agent-client
-cd agent-client
+git clone https://github.com/UltimateAI-org/aitoolsforobsidian.git obsidianaitools
+cd obsidianaitools
 
 # Install dependencies
 npm install
@@ -63,7 +63,7 @@ npm run dev
 
 ### Testing in Obsidian
 
-1. After cloning to `.obsidian/plugins/agent-client`, run `npm run dev`
+1. After cloning to `.obsidian/plugins/obsidianaitools`, run `npm run dev`
 2. Enable the plugin in Obsidian Settings → Community Plugins
 3. Code changes trigger automatic rebuilds, but you need to reload the plugin (toggle it off/on in Community Plugins) to see changes
 

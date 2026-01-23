@@ -124,29 +124,29 @@ export function ChatMessages({
 	}, [view, checkIfAtBottom]);
 
 	return (
-		<div ref={containerRef} className="agent-client-chat-view-messages">
+		<div ref={containerRef} className="obsidianaitools-chat-view-messages">
 			{errorInfo ? (
-				<div className="agent-client-chat-error-container">
-					<h4 className="agent-client-chat-error-title">
+				<div className="obsidianaitools-chat-error-container">
+					<h4 className="obsidianaitools-chat-error-title">
 						{errorInfo.title}
 					</h4>
-					<p className="agent-client-chat-error-message">
+					<p className="obsidianaitools-chat-error-message">
 						{errorInfo.message}
 					</p>
 					{errorInfo.suggestion && (
-						<p className="agent-client-chat-error-suggestion">
+						<p className="obsidianaitools-chat-error-suggestion">
 							💡 {errorInfo.suggestion}
 						</p>
 					)}
 					<button
 						onClick={onClearError}
-						className="agent-client-chat-error-button"
+						className="obsidianaitools-chat-error-button"
 					>
 						OK
 					</button>
 				</div>
 			) : messages.length === 0 ? (
-				<div className="agent-client-chat-empty-state">
+				<div className="obsidianaitools-chat-empty-state">
 					{isRestoringSession
 						? "Restoring session..."
 						: !isSessionReady
@@ -165,17 +165,17 @@ export function ChatMessages({
 						/>
 					))}
 					{isSending && (
-						<div className="agent-client-loading-indicator">
-							<div className="agent-client-loading-dots">
-								<div className="agent-client-loading-dot"></div>
-								<div className="agent-client-loading-dot"></div>
-								<div className="agent-client-loading-dot"></div>
-								<div className="agent-client-loading-dot"></div>
-								<div className="agent-client-loading-dot"></div>
-								<div className="agent-client-loading-dot"></div>
-								<div className="agent-client-loading-dot"></div>
-								<div className="agent-client-loading-dot"></div>
-								<div className="agent-client-loading-dot"></div>
+						<div className="obsidianaitools-loading-indicator">
+							<div className="obsidianaitools-loading-dots">
+								<div className="obsidianaitools-loading-dot"></div>
+								<div className="obsidianaitools-loading-dot"></div>
+								<div className="obsidianaitools-loading-dot"></div>
+								<div className="obsidianaitools-loading-dot"></div>
+								<div className="obsidianaitools-loading-dot"></div>
+								<div className="obsidianaitools-loading-dot"></div>
+								<div className="obsidianaitools-loading-dot"></div>
+								<div className="obsidianaitools-loading-dot"></div>
+								<div className="obsidianaitools-loading-dot"></div>
 							</div>
 						</div>
 					)}

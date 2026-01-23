@@ -13,17 +13,17 @@ export function CollapsibleThought({ text, plugin }: CollapsibleThoughtProps) {
 
 	return (
 		<div
-			className="agent-client-collapsible-thought"
+			className="obsidianaitools-collapsible-thought"
 			onClick={() => setIsExpanded(!isExpanded)}
 		>
-			<div className="agent-client-collapsible-thought-header">
+			<div className="obsidianaitools-collapsible-thought-header">
 				💡Thinking
-				<span className="agent-client-collapsible-thought-icon">
+				<span className="obsidianaitools-collapsible-thought-icon">
 					{isExpanded ? "▼" : "▶"}
 				</span>
 			</div>
 			{isExpanded && (
-				<div className="agent-client-collapsible-thought-content">
+				<div className="obsidianaitools-collapsible-thought-content">
 					<MarkdownTextRenderer text={text} plugin={plugin} />
 				</div>
 			)}

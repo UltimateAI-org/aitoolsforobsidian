@@ -143,7 +143,7 @@ created: ${localTimestamp}
 agentDisplayName: ${agentLabel}
 agentId: ${agentId}
 session_id: ${sessionId}
-tags: [agent-client]
+tags: [obsidianaitools]
 ---`;
 	}
 

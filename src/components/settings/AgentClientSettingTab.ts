@@ -33,7 +33,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 
 		// Documentation link
 		const docContainer = containerEl.createDiv({
-			cls: "agent-client-doc-link",
+			cls: "obsidianaitools-doc-link",
 		});
 		docContainer.createSpan({ text: "Need help? Check out the " });
 		docContainer.createEl("a", {
@@ -813,7 +813,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		index: number,
 	) {
 		const blockEl = containerEl.createDiv({
-			cls: "agent-client-custom-agent",
+			cls: "obsidianaitools-custom-agent",
 		});
 
 		const idSetting = new Setting(blockEl)

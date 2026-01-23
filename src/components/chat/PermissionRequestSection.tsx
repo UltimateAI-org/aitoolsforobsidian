@@ -39,13 +39,13 @@ export function PermissionRequestSection({
 	);
 
 	return (
-		<div className="agent-client-message-permission-request">
+		<div className="obsidianaitools-message-permission-request">
 			{isActive && !isSelected && !isCancelled && (
-				<div className="agent-client-message-permission-request-options">
+				<div className="obsidianaitools-message-permission-request-options">
 					{permissionRequest.options.map((option) => (
 						<button
 							key={option.optionId}
-							className={`agent-client-permission-option ${option.kind ? `agent-client-permission-kind-${option.kind}` : ""}`}
+							className={`obsidianaitools-permission-option ${option.kind ? `obsidianaitools-permission-kind-${option.kind}` : ""}`}
 							onClick={() => {
 								// Update local UI state immediately for feedback
 								if (onOptionSelected) {
@@ -71,12 +71,12 @@ export function PermissionRequestSection({
 				</div>
 			)}
 			{isSelected && selectedOption && (
-				<div className="agent-client-message-permission-request-result agent-client-selected">
+				<div className="obsidianaitools-message-permission-request-result obsidianaitools-selected">
 					✓ Selected: {selectedOption.name}
 				</div>
 			)}
 			{isCancelled && (
-				<div className="agent-client-message-permission-request-result agent-client-cancelled">
+				<div className="obsidianaitools-message-permission-request-result obsidianaitools-cancelled">
 					⚠ Cancelled: Permission request was cancelled
 				</div>
 			)}

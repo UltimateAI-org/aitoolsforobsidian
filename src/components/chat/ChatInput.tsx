@@ -408,12 +408,12 @@ export function ChatInput({
 		if (textarea) {
 			// Remove previous dynamic height classes
 			textarea.classList.remove(
-				"agent-client-textarea-auto-height",
-				"agent-client-textarea-expanded",
+				"obsidianaitools-textarea-auto-height",
+				"obsidianaitools-textarea-expanded",
 			);
 
 			// Temporarily use auto to measure
-			textarea.classList.add("agent-client-textarea-auto-height");
+			textarea.classList.add("obsidianaitools-textarea-auto-height");
 			const scrollHeight = textarea.scrollHeight;
 			const minHeight = 80;
 			const maxHeight = 300;
@@ -426,7 +426,7 @@ export function ChatInput({
 
 			// Apply expanded class if needed
 			if (calculatedHeight > minHeight) {
-				textarea.classList.add("agent-client-textarea-expanded");
+				textarea.classList.add("obsidianaitools-textarea-expanded");
 				// Set CSS variable for dynamic height
 				textarea.style.setProperty(
 					"--textarea-height",
@@ -436,7 +436,7 @@ export function ChatInput({
 				textarea.style.removeProperty("--textarea-height");
 			}
 
-			textarea.classList.remove("agent-client-textarea-auto-height");
+			textarea.classList.remove("obsidianaitools-textarea-auto-height");
 		}
 	}, []);
 
@@ -447,22 +447,22 @@ export function ChatInput({
 		(svg: SVGElement) => {
 			// Remove all state classes
 			svg.classList.remove(
-				"agent-client-icon-sending",
-				"agent-client-icon-active",
-				"agent-client-icon-inactive",
+				"obsidianaitools-icon-sending",
+				"obsidianaitools-icon-active",
+				"obsidianaitools-icon-inactive",
 			);
 
 			if (isSending) {
 				// Stop button - always active when sending
-				svg.classList.add("agent-client-icon-sending");
+				svg.classList.add("obsidianaitools-icon-sending");
 			} else {
 				// Send button - active when has input (text or images)
 				const hasContent =
 					inputValue.trim() !== "" || attachedImages.length > 0;
 				svg.classList.add(
 					hasContent
-						? "agent-client-icon-active"
-						: "agent-client-icon-inactive",
+						? "obsidianaitools-icon-active"
+						: "obsidianaitools-icon-inactive",
 				);
 			}
 		},
@@ -837,7 +837,7 @@ export function ChatInput({
 	const placeholder = `Message ${agentLabel} - @ to mention notes${availableCommands.length > 0 ? ", / for commands" : ""}`;
 
 	return (
-		<div className="agent-client-chat-input-container">
+		<div className="obsidianaitools-chat-input-container">
 			{/* Mention Dropdown */}
 			{mentions.isOpen && (
 				<SuggestionDropdown
@@ -866,7 +866,7 @@ export function ChatInput({
 
 			{/* Input Box - flexbox container with border */}
 			<div
-				className={`agent-client-chat-input-box ${isDraggingOver ? "agent-client-dragging-over" : ""}`}
+				className={`obsidianaitools-chat-input-box ${isDraggingOver ? "obsidianaitools-dragging-over" : ""}`}
 				onDragOver={handleDragOver}
 				onDragEnter={handleDragEnter}
 				onDragLeave={handleDragLeave}
@@ -874,13 +874,13 @@ export function ChatInput({
 			>
 				{/* Auto-mention Badge */}
 				{autoMentionEnabled && autoMention.activeNote && (
-					<div className="agent-client-auto-mention-inline">
+					<div className="obsidianaitools-auto-mention-inline">
 						<span
-							className={`agent-client-mention-badge ${autoMention.isDisabled ? "agent-client-disabled" : ""}`}
+							className={`obsidianaitools-mention-badge ${autoMention.isDisabled ? "obsidianaitools-disabled" : ""}`}
 						>
 							@{autoMention.activeNote.name}
 							{autoMention.activeNote.selection && (
-								<span className="agent-client-selection-indicator">
+								<span className="obsidianaitools-selection-indicator">
 									{":"}
 									{autoMention.activeNote.selection.from
 										.line + 1}
@@ -891,7 +891,7 @@ export function ChatInput({
 							)}
 						</span>
 						<button
-							className="agent-client-auto-mention-toggle-btn"
+							className="obsidianaitools-auto-mention-toggle-btn"
 							onClick={(e) => {
 								const newDisabledState =
 									!autoMention.isDisabled;
@@ -919,7 +919,7 @@ export function ChatInput({
 				)}
 
 				{/* Textarea with Hint Overlay */}
-				<div className="agent-client-textarea-wrapper">
+				<div className="obsidianaitools-textarea-wrapper">
 					<textarea
 						ref={textareaRef}
 						value={inputValue}
@@ -927,18 +927,18 @@ export function ChatInput({
 						onKeyDown={handleKeyDown}
 						onPaste={(e) => void handlePaste(e)}
 						placeholder={placeholder}
-						className={`agent-client-chat-input-textarea ${autoMentionEnabled && autoMention.activeNote ? "has-auto-mention" : ""}`}
+						className={`obsidianaitools-chat-input-textarea ${autoMentionEnabled && autoMention.activeNote ? "has-auto-mention" : ""}`}
 						rows={1}
 					/>
 					{hintText && (
 						<div
-							className="agent-client-hint-overlay"
+							className="obsidianaitools-hint-overlay"
 							aria-hidden="true"
 						>
-							<span className="agent-client-invisible">
+							<span className="obsidianaitools-invisible">
 								{commandText}
 							</span>
-							<span className="agent-client-hint-text">
+							<span className="obsidianaitools-hint-text">
 								{hintText}
 							</span>
 						</div>
@@ -954,11 +954,11 @@ export function ChatInput({
 				)}
 
 				{/* Input Actions (Mode Selector + Model Selector + Send Button) */}
-				<div className="agent-client-chat-input-actions">
+				<div className="obsidianaitools-chat-input-actions">
 					{/* Mode Selector */}
 					{modes && modes.availableModes.length > 1 && (
 						<div
-							className="agent-client-mode-selector"
+							className="obsidianaitools-mode-selector"
 							title={
 								modes.availableModes.find(
 									(m) => m.id === modes.currentModeId,
@@ -967,7 +967,7 @@ export function ChatInput({
 						>
 							<div ref={modeDropdownRef} />
 							<span
-								className="agent-client-mode-selector-icon"
+								className="obsidianaitools-mode-selector-icon"
 								ref={(el) => {
 									if (el) setIcon(el, "chevron-down");
 								}}
@@ -978,7 +978,7 @@ export function ChatInput({
 					{/* Model Selector (experimental) */}
 					{models && models.availableModels.length > 1 && (
 						<div
-							className="agent-client-model-selector"
+							className="obsidianaitools-model-selector"
 							title={
 								models.availableModels.find(
 									(m) => m.modelId === models.currentModelId,
@@ -987,7 +987,7 @@ export function ChatInput({
 						>
 							<div ref={modelDropdownRef} />
 							<span
-								className="agent-client-model-selector-icon"
+								className="obsidianaitools-model-selector-icon"
 								ref={(el) => {
 									if (el) setIcon(el, "chevron-down");
 								}}
@@ -1000,7 +1000,7 @@ export function ChatInput({
 						ref={sendButtonRef}
 						onClick={() => void handleSendOrStop()}
 						disabled={isButtonDisabled}
-						className={`agent-client-chat-send-button ${isSending ? "sending" : ""} ${isButtonDisabled ? "agent-client-disabled" : ""}`}
+						className={`obsidianaitools-chat-send-button ${isSending ? "sending" : ""} ${isButtonDisabled ? "obsidianaitools-disabled" : ""}`}
 						title={
 							!isSessionReady
 								? "Connecting..."

@@ -50,7 +50,7 @@ export function MarkdownTextRenderer({
 	return (
 		<div
 			ref={containerRef}
-			className="agent-client-markdown-text-renderer"
+			className="obsidianaitools-markdown-text-renderer"
 		/>
 	);
 }

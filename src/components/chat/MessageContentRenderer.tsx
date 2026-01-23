@@ -63,17 +63,17 @@ export function MessageContentRenderer({
 
 		case "plan":
 			return (
-				<div className="agent-client-message-plan">
-					<div className="agent-client-message-plan-title">
+				<div className="obsidianaitools-message-plan">
+					<div className="obsidianaitools-message-plan-title">
 						📋 Plan
 					</div>
 					{content.entries.map((entry, idx) => (
 						<div
 							key={idx}
-							className="agent-client-message-plan-entry"
+							className="obsidianaitools-message-plan-entry"
 						>
 							<span
-								className={`agent-client-message-plan-entry-icon agent-client-status-${entry.status}`}
+								className={`obsidianaitools-message-plan-entry-icon obsidianaitools-status-${entry.status}`}
 							>
 								{entry.status === "completed"
 									? "✓"
@@ -98,11 +98,11 @@ export function MessageContentRenderer({
 
 		case "image":
 			return (
-				<div className="agent-client-message-image">
+				<div className="obsidianaitools-message-image">
 					<img
 						src={`data:${content.mimeType};base64,${content.data}`}
 						alt="Attached image"
-						className="agent-client-message-image-thumbnail"
+						className="obsidianaitools-message-image-thumbnail"
 					/>
 				</div>
 			);

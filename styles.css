@@ -8,7 +8,7 @@ If your plugin does not need CSS, delete this file.
 */
 
 /* ===== Settings Tab Documentation Link ===== */
-.agent-client-doc-link {
+.obsidianaitools-doc-link {
 	padding: 12px 16px;
 	margin-bottom: 16px;
 	background-color: var(--background-secondary);
@@ -18,17 +18,17 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-muted);
 }
 
-.agent-client-doc-link a {
+.obsidianaitools-doc-link a {
 	color: var(--text-accent);
 	text-decoration: none;
 }
 
-.agent-client-doc-link a:hover {
+.obsidianaitools-doc-link a:hover {
 	text-decoration: underline;
 }
 
 /* ===== Settings Tab Custom Agent Block ===== */
-.agent-client-custom-agent {
+.obsidianaitools-custom-agent {
 	padding: 16px;
 	margin-bottom: 24px;
 	background-color: var(--background-secondary);
@@ -37,14 +37,14 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* ===== Loading Indicator ===== */
-.agent-client-loading-indicator {
+.obsidianaitools-loading-indicator {
 	display: flex;
 	align-items: center;
 	padding: 16px;
 	margin: 4px 0;
 }
 
-.agent-client-loading-dots {
+.obsidianaitools-loading-dots {
 	display: grid;
 	grid-template-columns: repeat(3, 4px);
 	grid-template-rows: repeat(3, 5px);
@@ -54,7 +54,7 @@ If your plugin does not need CSS, delete this file.
 	will-change: transform;
 }
 
-.agent-client-loading-dot {
+.obsidianaitools-loading-dot {
 	width: 4px;
 	height: 5px;
 	background-color: var(--background-modifier-border);
@@ -62,39 +62,39 @@ If your plugin does not need CSS, delete this file.
 	animation: dotPulse 1.2s ease-in-out infinite;
 }
 
-.agent-client-loading-dot:nth-child(1) {
+.obsidianaitools-loading-dot:nth-child(1) {
 	animation-delay: 0s;
 }
 
-.agent-client-loading-dot:nth-child(2) {
+.obsidianaitools-loading-dot:nth-child(2) {
 	animation-delay: 0.15s;
 }
 
-.agent-client-loading-dot:nth-child(3) {
+.obsidianaitools-loading-dot:nth-child(3) {
 	animation-delay: 0.3s;
 }
 
-.agent-client-loading-dot:nth-child(4) {
+.obsidianaitools-loading-dot:nth-child(4) {
 	animation-delay: 0.9s;
 }
 
-.agent-client-loading-dot:nth-child(5) {
+.obsidianaitools-loading-dot:nth-child(5) {
 	animation-delay: 0s;
 }
 
-.agent-client-loading-dot:nth-child(6) {
+.obsidianaitools-loading-dot:nth-child(6) {
 	animation-delay: 0.15s;
 }
 
-.agent-client-loading-dot:nth-child(7) {
+.obsidianaitools-loading-dot:nth-child(7) {
 	animation-delay: 0.6s;
 }
 
-.agent-client-loading-dot:nth-child(8) {
+.obsidianaitools-loading-dot:nth-child(8) {
 	animation-delay: 0.45s;
 }
 
-.agent-client-loading-dot:nth-child(9) {
+.obsidianaitools-loading-dot:nth-child(9) {
 	animation-delay: 0.3s;
 }
 
@@ -109,7 +109,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* ===== Header Button Component ===== */
-.agent-client-header-button {
+.obsidianaitools-header-button {
 	width: 20px;
 	height: 20px;
 	padding: 0 !important;
@@ -131,23 +131,23 @@ If your plugin does not need CSS, delete this file.
 	min-height: unset !important;
 }
 
-.agent-client-header-button svg {
+.obsidianaitools-header-button svg {
 	color: var(--text-muted);
 	transition: color 0.2s ease;
 }
 
-.agent-client-header-button:hover {
+.obsidianaitools-header-button:hover {
 	background-color: var(--background-modifier-hover) !important;
 }
 
-.agent-client-header-button:hover svg {
+.obsidianaitools-header-button:hover svg {
 	color: var(--interactive-accent);
 }
 
 /* ===== Message Content Components ===== */
 
 /* Tool Call */
-.agent-client-message-tool-call {
+.obsidianaitools-message-tool-call {
 	padding: 8px;
 	margin-top: 4px;
 	background-color: transparent;
@@ -161,7 +161,7 @@ If your plugin does not need CSS, delete this file.
 	max-width: 100%;
 }
 
-.agent-client-message-tool-call-title {
+.obsidianaitools-message-tool-call-title {
 	font-weight: bold;
 	margin-bottom: 4px;
 	user-select: text;
@@ -170,7 +170,7 @@ If your plugin does not need CSS, delete this file.
 	word-break: break-word;
 }
 
-.agent-client-message-tool-call-locations {
+.obsidianaitools-message-tool-call-locations {
 	color: var(--text-muted);
 	user-select: text;
 	overflow-wrap: break-word;
@@ -178,13 +178,13 @@ If your plugin does not need CSS, delete this file.
 	word-break: break-word;
 }
 
-.agent-client-message-tool-call-location {
+.obsidianaitools-message-tool-call-location {
 	display: block;
 	font-family: var(--font-monospace);
 	font-size: 0.9em;
 }
 
-.agent-client-message-tool-call-status {
+.obsidianaitools-message-tool-call-status {
 	color: var(--text-muted);
 	user-select: text;
 	overflow-wrap: break-word;
@@ -193,7 +193,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Plan */
-.agent-client-message-plan {
+.obsidianaitools-message-plan {
 	padding: 8px;
 	margin-top: 4px;
 	border: 1px solid var(--background-modifier-border);
@@ -206,7 +206,7 @@ If your plugin does not need CSS, delete this file.
 	max-width: 100%;
 }
 
-.agent-client-message-plan-title {
+.obsidianaitools-message-plan-title {
 	font-weight: bold;
 	margin-bottom: 4px;
 	user-select: text;
@@ -215,7 +215,7 @@ If your plugin does not need CSS, delete this file.
 	word-break: break-word;
 }
 
-.agent-client-message-plan-entry {
+.obsidianaitools-message-plan-entry {
 	margin: 2px 0;
 	padding: 2px 4px;
 	border-left: 2px solid var(--text-muted);
@@ -225,23 +225,23 @@ If your plugin does not need CSS, delete this file.
 	word-break: break-word;
 }
 
-.agent-client-message-plan-entry-icon.agent-client-status-completed {
+.obsidianaitools-message-plan-entry-icon.obsidianaitools-status-completed {
 	color: var(--color-green);
 	user-select: text;
 }
 
-.agent-client-message-plan-entry-icon.agent-client-status-in_progress {
+.obsidianaitools-message-plan-entry-icon.obsidianaitools-status-in_progress {
 	color: var(--color-orange);
 	user-select: text;
 }
 
-.agent-client-message-plan-entry-icon.agent-client-status-pending {
+.obsidianaitools-message-plan-entry-icon.obsidianaitools-status-pending {
 	color: var(--text-muted);
 	user-select: text;
 }
 
 /* Permission Request */
-.agent-client-message-permission-request {
+.obsidianaitools-message-permission-request {
 	padding: 6px 0px;
 	margin-top: 4px;
 	background-color: var(--background-secondary);
@@ -253,7 +253,7 @@ If your plugin does not need CSS, delete this file.
 	max-width: 100%;
 }
 
-.agent-client-message-permission-request-title {
+.obsidianaitools-message-permission-request-title {
 	font-weight: bold;
 	margin-bottom: 8px;
 	display: flex;
@@ -265,7 +265,7 @@ If your plugin does not need CSS, delete this file.
 	word-break: break-word;
 }
 
-.agent-client-message-permission-request-description {
+.obsidianaitools-message-permission-request-description {
 	margin-bottom: 12px;
 	color: var(--text-normal);
 	user-select: text;
@@ -274,14 +274,14 @@ If your plugin does not need CSS, delete this file.
 	word-break: break-word;
 }
 
-.agent-client-message-permission-request-options {
+.obsidianaitools-message-permission-request-options {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
 	justify-content: flex-end;
 }
 
-.agent-client-message-permission-request-result {
+.obsidianaitools-message-permission-request-result {
 	padding: 8px;
 	background-color: var(--background-primary);
 	border-radius: 4px;
@@ -289,16 +289,16 @@ If your plugin does not need CSS, delete this file.
 	user-select: text;
 }
 
-.agent-client-message-permission-request-result.agent-client-selected {
+.obsidianaitools-message-permission-request-result.obsidianaitools-selected {
 	color: var(--text-accent);
 }
 
-.agent-client-message-permission-request-result.agent-client-cancelled {
+.obsidianaitools-message-permission-request-result.obsidianaitools-cancelled {
 	color: var(--color-orange);
 }
 
 /* ===== Permission Request Buttons ===== */
-.agent-client-permission-option {
+.obsidianaitools-permission-option {
 	padding: 8px 16px !important;
 	border: 1px solid var(--background-modifier-border) !important;
 	border-radius: 6px !important;
@@ -313,62 +313,62 @@ If your plugin does not need CSS, delete this file.
 	opacity: 1;
 }
 
-.agent-client-permission-option.agent-client-selected {
+.obsidianaitools-permission-option.obsidianaitools-selected {
 	background-color: var(--interactive-accent) !important;
 	color: white !important;
 	font-weight: 600;
 }
 
-.agent-client-permission-option.agent-client-disabled {
+.obsidianaitools-permission-option.obsidianaitools-disabled {
 	background-color: var(--background-modifier-border) !important;
 	color: var(--text-muted) !important;
 	cursor: not-allowed !important;
 }
 
-.agent-client-permission-option.agent-client-disabled:not(
-		.agent-client-selected
+.obsidianaitools-permission-option.obsidianaitools-disabled:not(
+		.obsidianaitools-selected
 	) {
 	opacity: 0.5;
 }
 
 /* Special kinds */
-.agent-client-permission-option.agent-client-permission-kind-allow_always:not(
-		.agent-client-selected
-	):not(.agent-client-disabled) {
+.obsidianaitools-permission-option.obsidianaitools-permission-kind-allow_always:not(
+		.obsidianaitools-selected
+	):not(.obsidianaitools-disabled) {
 	background-color: var(--color-green) !important;
 	color: white !important;
 	border-color: var(--color-green) !important;
 }
 
-.agent-client-permission-option.agent-client-permission-kind-reject_once:not(
-		.agent-client-selected
-	):not(.agent-client-disabled) {
+.obsidianaitools-permission-option.obsidianaitools-permission-kind-reject_once:not(
+		.obsidianaitools-selected
+	):not(.obsidianaitools-disabled) {
 	background-color: var(--color-red) !important;
 	color: white !important;
 	border-color: var(--color-red) !important;
 }
 
-.agent-client-permission-option.agent-client-permission-kind-allow_once:not(
-		.agent-client-selected
-	):not(.agent-client-disabled) {
+.obsidianaitools-permission-option.obsidianaitools-permission-kind-allow_once:not(
+		.obsidianaitools-selected
+	):not(.obsidianaitools-disabled) {
 	background-color: var(--color-orange) !important;
 	color: white !important;
 	border-color: var(--color-orange) !important;
 }
 
 /* Normal option button hover (no kind specified) */
-.agent-client-permission-option:not(
-		.agent-client-permission-kind-allow_always
-	):not(.agent-client-permission-kind-reject_once):not(
-		.agent-client-permission-kind-allow_once
-	):not(.agent-client-disabled):not(.agent-client-selected):hover {
+.obsidianaitools-permission-option:not(
+		.obsidianaitools-permission-kind-allow_always
+	):not(.obsidianaitools-permission-kind-reject_once):not(
+		.obsidianaitools-permission-kind-allow_once
+	):not(.obsidianaitools-disabled):not(.obsidianaitools-selected):hover {
 	background-color: var(--background-modifier-hover) !important;
 }
 
 /* ===== Chat View Components ===== */
 
 /* Main container */
-.agent-client-chat-view-container {
+.obsidianaitools-chat-view-container {
 	height: 100%;
 	display: flex;
 	flex-direction: column;
@@ -376,7 +376,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Header */
-.agent-client-chat-view-header {
+.obsidianaitools-chat-view-header {
 	padding: 16px;
 	border-bottom: 1px solid var(--background-modifier-border);
 	flex-shrink: 0;
@@ -385,18 +385,18 @@ If your plugin does not need CSS, delete this file.
 	justify-content: space-between;
 }
 
-.agent-client-chat-view-header-main {
+.obsidianaitools-chat-view-header-main {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
 	flex: 1;
 }
 
-.agent-client-chat-view-header-title {
+.obsidianaitools-chat-view-header-title {
 	margin: 0 !important;
 }
 
-.agent-client-chat-view-header-update {
+.obsidianaitools-chat-view-header-update {
 	margin: 0 10px 0 auto !important;
 	padding: 2px 8px;
 	font-size: 11px;
@@ -406,13 +406,13 @@ If your plugin does not need CSS, delete this file.
 	font-weight: 500;
 }
 
-.agent-client-chat-view-header-actions {
+.obsidianaitools-chat-view-header-actions {
 	display: flex;
 	gap: 8px;
 }
 
 /* Messages container */
-.agent-client-chat-view-messages {
+.obsidianaitools-chat-view-messages {
 	flex: 1;
 	padding: 16px;
 	overflow-y: auto;
@@ -422,7 +422,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Error display */
-.agent-client-chat-error-container {
+.obsidianaitools-chat-error-container {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
@@ -434,12 +434,12 @@ If your plugin does not need CSS, delete this file.
 	overflow: hidden;
 }
 
-.agent-client-chat-error-title {
+.obsidianaitools-chat-error-title {
 	margin: 0 0 8px 0 !important;
 	color: var(--color-red) !important;
 }
 
-.agent-client-chat-error-message {
+.obsidianaitools-chat-error-message {
 	margin: 0 !important;
 	color: var(--text-normal);
 	font-size: 14px;
@@ -449,7 +449,7 @@ If your plugin does not need CSS, delete this file.
 	overflow-wrap: anywhere;
 }
 
-.agent-client-chat-error-suggestion {
+.obsidianaitools-chat-error-suggestion {
 	margin: 8px 0 0 0 !important;
 	color: var(--text-muted);
 	font-size: 13px;
@@ -460,7 +460,7 @@ If your plugin does not need CSS, delete this file.
 	overflow-wrap: anywhere;
 }
 
-.agent-client-chat-error-button {
+.obsidianaitools-chat-error-button {
 	padding: 8px 16px !important;
 	border: 1px solid var(--background-modifier-border) !important;
 	border-radius: 6px !important;
@@ -471,20 +471,20 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Empty state */
-.agent-client-chat-empty-state {
+.obsidianaitools-chat-empty-state {
 	color: var(--text-muted);
 	text-align: center;
 	margin-top: 20px;
 }
 
 /* Input area */
-.agent-client-chat-input-container {
+.obsidianaitools-chat-input-container {
 	flex-shrink: 0;
 	position: relative;
 }
 
 /* Input box - outer container with border and background */
-.agent-client-chat-input-box {
+.obsidianaitools-chat-input-box {
 	display: flex;
 	flex-direction: column;
 	border: 1px solid var(--background-modifier-border);
@@ -494,16 +494,16 @@ If your plugin does not need CSS, delete this file.
 	transition: box-shadow 0.15s ease;
 }
 
-.agent-client-chat-input-box:focus-within {
+.obsidianaitools-chat-input-box:focus-within {
 	box-shadow: 0 0 0 1.5px var(--background-modifier-border);
 }
 
-.agent-client-chat-input-box.agent-client-dragging-over {
+.obsidianaitools-chat-input-box.obsidianaitools-dragging-over {
 	background-color: var(--background-secondary);
 }
 
 /* Auto-mention inline display */
-.agent-client-auto-mention-inline {
+.obsidianaitools-auto-mention-inline {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -513,7 +513,7 @@ If your plugin does not need CSS, delete this file.
 	background-color: transparent;
 }
 
-.agent-client-mention-badge {
+.obsidianaitools-mention-badge {
 	background-color: transparent;
 	color: var(--interactive-accent-hover);
 	border-radius: 3px;
@@ -528,12 +528,12 @@ If your plugin does not need CSS, delete this file.
 	max-width: calc(100% - 24px);
 }
 
-.agent-client-mention-badge.agent-client-disabled {
+.obsidianaitools-mention-badge.obsidianaitools-disabled {
 	color: var(--text-faint);
 	text-decoration: line-through;
 }
 
-.agent-client-auto-mention-toggle-btn {
+.obsidianaitools-auto-mention-toggle-btn {
 	background: none;
 	background-color: transparent !important;
 	border: none !important;
@@ -554,26 +554,26 @@ If your plugin does not need CSS, delete this file.
 	flex-shrink: 0;
 }
 
-.agent-client-auto-mention-toggle-btn svg {
+.obsidianaitools-auto-mention-toggle-btn svg {
 	width: 14px;
 	height: 14px;
 	color: inherit;
 }
 
-.agent-client-auto-mention-toggle-btn:hover {
+.obsidianaitools-auto-mention-toggle-btn:hover {
 	background: none;
 	box-shadow: none;
 	color: var(--interactive-accent);
 }
 
-.agent-client-auto-mention-toggle-btn:active,
-.agent-client-auto-mention-toggle-btn:focus {
+.obsidianaitools-auto-mention-toggle-btn:active,
+.obsidianaitools-auto-mention-toggle-btn:focus {
 	background: none;
 	box-shadow: none;
 	outline: none;
 }
 
-.agent-client-chat-input-textarea {
+.obsidianaitools-chat-input-textarea {
 	width: 100%;
 	padding: 12px;
 	border: none;
@@ -592,39 +592,39 @@ If your plugin does not need CSS, delete this file.
 	-ms-overflow-style: none;
 }
 
-.agent-client-chat-input-textarea::-webkit-scrollbar {
+.obsidianaitools-chat-input-textarea::-webkit-scrollbar {
 	display: none;
 }
 
-.agent-client-chat-input-textarea:hover {
+.obsidianaitools-chat-input-textarea:hover {
 	border: none !important;
 	background-color: transparent !important;
 }
 
-.agent-client-chat-input-textarea:focus {
+.obsidianaitools-chat-input-textarea:focus {
 	border: none !important;
 	outline: none !important;
 	box-shadow: none !important;
 }
 
 /* Dynamic textarea height management */
-.agent-client-chat-input-textarea.agent-client-textarea-auto-height {
+.obsidianaitools-chat-input-textarea.obsidianaitools-textarea-auto-height {
 	height: auto;
 }
 
-.agent-client-chat-input-textarea.agent-client-textarea-expanded {
+.obsidianaitools-chat-input-textarea.obsidianaitools-textarea-expanded {
 	height: var(--textarea-height, auto);
 }
 
 /* Textarea wrapper for hint overlay */
-.agent-client-textarea-wrapper {
+.obsidianaitools-textarea-wrapper {
 	position: relative;
 	flex: 1;
 	min-height: 80px;
 }
 
 /* Hint overlay for slash commands */
-.agent-client-hint-overlay {
+.obsidianaitools-hint-overlay {
 	/* Positioning - exact overlay on textarea */
 	position: absolute;
 	top: 0;
@@ -644,16 +644,16 @@ If your plugin does not need CSS, delete this file.
 	overflow: hidden;
 }
 
-.agent-client-hint-overlay .agent-client-invisible {
+.obsidianaitools-hint-overlay .obsidianaitools-invisible {
 	visibility: hidden;
 }
 
-.agent-client-hint-overlay .agent-client-hint-text {
+.obsidianaitools-hint-overlay .obsidianaitools-hint-text {
 	color: var(--text-faint);
 }
 
 /* Input Actions Container */
-.agent-client-chat-input-actions {
+.obsidianaitools-chat-input-actions {
 	display: flex;
 	align-items: center;
 	justify-content: flex-end;
@@ -662,7 +662,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Mode Selector */
-.agent-client-mode-selector {
+.obsidianaitools-mode-selector {
 	display: inline-flex;
 	align-items: center;
 	padding: 0 4px;
@@ -673,11 +673,11 @@ If your plugin does not need CSS, delete this file.
 	max-width: 120px;
 }
 
-.agent-client-mode-selector:hover {
+.obsidianaitools-mode-selector:hover {
 	background-color: var(--background-modifier-hover);
 }
 
-.agent-client-mode-selector-icon {
+.obsidianaitools-mode-selector-icon {
 	display: flex;
 	align-items: center;
 	pointer-events: none;
@@ -686,12 +686,12 @@ If your plugin does not need CSS, delete this file.
 	order: 2;
 }
 
-.agent-client-mode-selector-icon svg {
+.obsidianaitools-mode-selector-icon svg {
 	width: 12px;
 	height: 12px;
 }
 
-.agent-client-mode-selector select.dropdown {
+.obsidianaitools-mode-selector select.dropdown {
 	padding: 0 !important;
 	margin: 0 !important;
 	border: none !important;
@@ -714,15 +714,15 @@ If your plugin does not need CSS, delete this file.
 	white-space: nowrap;
 }
 
-.agent-client-mode-selector select.dropdown:hover,
-.agent-client-mode-selector select.dropdown:focus {
+.obsidianaitools-mode-selector select.dropdown:hover,
+.obsidianaitools-mode-selector select.dropdown:focus {
 	color: var(--text-faint) !important;
 	background-color: transparent !important;
 	box-shadow: none !important;
 }
 
 /* Model Selector (experimental) */
-.agent-client-model-selector {
+.obsidianaitools-model-selector {
 	display: inline-flex;
 	align-items: center;
 	padding: 0 4px;
@@ -733,11 +733,11 @@ If your plugin does not need CSS, delete this file.
 	max-width: 120px;
 }
 
-.agent-client-model-selector:hover {
+.obsidianaitools-model-selector:hover {
 	background-color: var(--background-modifier-hover);
 }
 
-.agent-client-model-selector-icon {
+.obsidianaitools-model-selector-icon {
 	display: flex;
 	align-items: center;
 	pointer-events: none;
@@ -746,12 +746,12 @@ If your plugin does not need CSS, delete this file.
 	order: 2;
 }
 
-.agent-client-model-selector-icon svg {
+.obsidianaitools-model-selector-icon svg {
 	width: 12px;
 	height: 12px;
 }
 
-.agent-client-model-selector select.dropdown {
+.obsidianaitools-model-selector select.dropdown {
 	padding: 0 !important;
 	margin: 0 !important;
 	border: none !important;
@@ -774,15 +774,15 @@ If your plugin does not need CSS, delete this file.
 	white-space: nowrap;
 }
 
-.agent-client-model-selector select.dropdown:hover,
-.agent-client-model-selector select.dropdown:focus {
+.obsidianaitools-model-selector select.dropdown:hover,
+.obsidianaitools-model-selector select.dropdown:focus {
 	color: var(--text-faint) !important;
 	background-color: transparent !important;
 	box-shadow: none !important;
 }
 
 /* Send button */
-.agent-client-chat-send-button {
+.obsidianaitools-chat-send-button {
 	width: 20px;
 	height: 20px;
 	padding: 0 !important;
@@ -801,31 +801,31 @@ If your plugin does not need CSS, delete this file.
 	transition: all 0.2s ease;
 }
 
-.agent-client-chat-send-button.agent-client-disabled {
+.obsidianaitools-chat-send-button.obsidianaitools-disabled {
 	cursor: not-allowed !important;
 }
 
 /* Send button icon states */
-.agent-client-chat-send-button svg {
+.obsidianaitools-chat-send-button svg {
 	transition: color 0.2s ease;
 }
 
-.agent-client-chat-send-button svg.agent-client-icon-sending {
+.obsidianaitools-chat-send-button svg.obsidianaitools-icon-sending {
 	color: var(--color-red);
 }
 
-.agent-client-chat-send-button svg.agent-client-icon-active {
+.obsidianaitools-chat-send-button svg.obsidianaitools-icon-active {
 	color: var(--interactive-accent);
 }
 
-.agent-client-chat-send-button svg.agent-client-icon-inactive {
+.obsidianaitools-chat-send-button svg.obsidianaitools-icon-inactive {
 	color: var(--text-muted);
 }
 
 /* ===== Other Chat Components ===== */
 
 /* Collapsible Thought */
-.agent-client-collapsible-thought {
+.obsidianaitools-collapsible-thought {
 	font-style: italic;
 	color: var(--text-muted);
 	background-color: transparent;
@@ -838,19 +838,19 @@ If your plugin does not need CSS, delete this file.
 	margin-top: 8px;
 }
 
-.agent-client-collapsible-thought-header {
+.obsidianaitools-collapsible-thought-header {
 	display: flex;
 	align-items: center;
 	gap: 4px;
 }
 
-.agent-client-collapsible-thought-icon {
+.obsidianaitools-collapsible-thought-icon {
 	font-size: 0.8em;
 	opacity: 0.7;
 	margin-left: auto;
 }
 
-.agent-client-collapsible-thought-content {
+.obsidianaitools-collapsible-thought-content {
 	margin-top: 8px;
 	padding-left: 16px;
 	user-select: text;
@@ -860,7 +860,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Mention Dropdown */
-.agent-client-mention-dropdown {
+.obsidianaitools-mention-dropdown {
 	position: absolute;
 	bottom: 100%;
 	left: 0;
@@ -876,7 +876,7 @@ If your plugin does not need CSS, delete this file.
 	z-index: 1000;
 }
 
-.agent-client-mention-dropdown-item {
+.obsidianaitools-mention-dropdown-item {
 	padding: 4px 16px;
 	cursor: pointer;
 	background-color: transparent;
@@ -884,28 +884,28 @@ If your plugin does not need CSS, delete this file.
 	transition: background-color 0.1s ease;
 }
 
-.agent-client-mention-dropdown-item.agent-client-selected {
+.obsidianaitools-mention-dropdown-item.obsidianaitools-selected {
 	background-color: var(--background-primary);
 }
 
-.agent-client-mention-dropdown-item.agent-client-has-border {
+.obsidianaitools-mention-dropdown-item.obsidianaitools-has-border {
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.agent-client-mention-dropdown-item-name {
+.obsidianaitools-mention-dropdown-item-name {
 	font-weight: 500;
 	color: var(--text-normal);
 	margin-bottom: 2px;
 }
 
-.agent-client-mention-dropdown-item-path {
+.obsidianaitools-mention-dropdown-item-path {
 	font-size: 12px;
 	color: var(--text-muted);
 	opacity: 0.8;
 }
 
 /* Terminal Renderer */
-.agent-client-terminal-renderer {
+.obsidianaitools-terminal-renderer {
 	padding: 12px;
 	margin-top: 4px;
 	background-color: var(--background-secondary);
@@ -916,7 +916,7 @@ If your plugin does not need CSS, delete this file.
 	user-select: text;
 }
 
-.agent-client-terminal-renderer-header {
+.obsidianaitools-terminal-renderer-header {
 	font-weight: bold;
 	margin-bottom: 8px;
 	display: flex;
@@ -926,24 +926,24 @@ If your plugin does not need CSS, delete this file.
 	user-select: text;
 }
 
-.agent-client-terminal-status {
+.obsidianaitools-terminal-status {
 	font-size: 10px;
 	user-select: text;
 }
 
-.agent-client-terminal-status.agent-client-running {
+.obsidianaitools-terminal-status.obsidianaitools-running {
 	color: var(--color-green);
 }
 
-.agent-client-terminal-status.agent-client-cancelled {
+.obsidianaitools-terminal-status.obsidianaitools-cancelled {
 	color: var(--color-orange);
 }
 
-.agent-client-terminal-status.agent-client-finished {
+.obsidianaitools-terminal-status.obsidianaitools-finished {
 	color: var(--text-muted);
 }
 
-.agent-client-terminal-renderer-output {
+.obsidianaitools-terminal-renderer-output {
 	background-color: var(--background-primary);
 	padding: 8px;
 	border-radius: 4px;
@@ -956,7 +956,7 @@ If your plugin does not need CSS, delete this file.
 	user-select: text;
 }
 
-.agent-client-terminal-renderer-exit {
+.obsidianaitools-terminal-renderer-exit {
 	margin-top: 8px;
 	padding: 4px 8px;
 	color: white;
@@ -966,16 +966,16 @@ If your plugin does not need CSS, delete this file.
 	user-select: text;
 }
 
-.agent-client-terminal-renderer-exit.agent-client-success {
+.obsidianaitools-terminal-renderer-exit.obsidianaitools-success {
 	background-color: var(--color-green);
 }
 
-.agent-client-terminal-renderer-exit.agent-client-error {
+.obsidianaitools-terminal-renderer-exit.obsidianaitools-error {
 	background-color: var(--color-red);
 }
 
 /* Message Renderer */
-.agent-client-message-renderer {
+.obsidianaitools-message-renderer {
 	padding: 0px 16px;
 	width: 100%;
 	margin: 4px 0;
@@ -987,20 +987,20 @@ If your plugin does not need CSS, delete this file.
 	box-sizing: border-box;
 }
 
-.agent-client-message-renderer.agent-client-message-user {
+.obsidianaitools-message-renderer.obsidianaitools-message-user {
 	background-color: var(--background-primary);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 8px;
 }
 
-.agent-client-message-renderer.agent-client-message-assistant {
+.obsidianaitools-message-renderer.obsidianaitools-message-assistant {
 	background-color: transparent;
 	border: none;
 	border-radius: 0;
 }
 
 /* Text with Mentions */
-.agent-client-text-with-mentions {
+.obsidianaitools-text-with-mentions {
 	user-select: text;
 	white-space: pre-wrap;
 	word-wrap: break-word;
@@ -1011,7 +1011,7 @@ If your plugin does not need CSS, delete this file.
 	max-width: 100%;
 }
 
-.agent-client-text-mention {
+.obsidianaitools-text-mention {
 	background-color: transparent;
 	color: var(--interactive-accent-hover);
 	border-radius: 3px;
@@ -1021,7 +1021,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Markdown Text Renderer */
-.agent-client-markdown-text-renderer {
+.obsidianaitools-markdown-text-renderer {
 	user-select: text;
 	font-size: var(--font-text-size);
 	overflow-wrap: break-word;
@@ -1030,7 +1030,7 @@ If your plugin does not need CSS, delete this file.
 	max-width: 100%;
 }
 
-.agent-client-markdown-text-renderer .markdown-rendered {
+.obsidianaitools-markdown-text-renderer .markdown-rendered {
 	font-size: inherit;
 	overflow-wrap: break-word;
 	word-wrap: break-word;
@@ -1038,7 +1038,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Tool Call Diff Renderer */
-.agent-client-tool-call-diff {
+.obsidianaitools-tool-call-diff {
 	margin-top: 8px;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 4px;
@@ -1047,12 +1047,12 @@ If your plugin does not need CSS, delete this file.
 	font-size: 12px;
 }
 
-.agent-client-tool-call-diff-content {
+.obsidianaitools-tool-call-diff-content {
 	background-color: var(--background-primary);
 	overflow: auto;
 }
 
-.agent-client-diff-line-info {
+.obsidianaitools-diff-line-info {
 	padding: 4px 12px;
 	background-color: var(--background-secondary);
 	color: var(--text-muted);
@@ -1060,14 +1060,14 @@ If your plugin does not need CSS, delete this file.
 	font-style: italic;
 }
 
-.agent-client-diff-line {
+.obsidianaitools-diff-line {
 	display: flex;
 	align-items: flex-start;
 	line-height: 1.5;
 	user-select: text;
 }
 
-.agent-client-diff-line-number {
+.obsidianaitools-diff-line-number {
 	display: inline-block;
 	width: 40px;
 	padding: 2px 8px;
@@ -1078,15 +1078,15 @@ If your plugin does not need CSS, delete this file.
 	font-size: 11px;
 }
 
-.agent-client-diff-line-number-old {
+.obsidianaitools-diff-line-number-old {
 	border-right: 1px solid var(--background-modifier-border);
 }
 
-.agent-client-diff-line-number-new {
+.obsidianaitools-diff-line-number-new {
 	border-right: 1px solid var(--background-modifier-border);
 }
 
-.agent-client-diff-line-marker {
+.obsidianaitools-diff-line-marker {
 	display: inline-block;
 	width: 20px;
 	padding: 2px 4px;
@@ -1096,39 +1096,39 @@ If your plugin does not need CSS, delete this file.
 	text-align: center;
 }
 
-.agent-client-diff-line-content {
+.obsidianaitools-diff-line-content {
 	flex: 1;
 	padding: 2px 12px;
 	white-space: pre-wrap;
 	word-break: break-all;
 }
 
-.agent-client-diff-line-added {
+.obsidianaitools-diff-line-added {
 	background-color: rgba(46, 160, 67, 0.15);
 }
 
-.agent-client-diff-line-added .agent-client-diff-line-marker {
+.obsidianaitools-diff-line-added .obsidianaitools-diff-line-marker {
 	color: var(--color-green);
 }
 
-.agent-client-diff-line-removed {
+.obsidianaitools-diff-line-removed {
 	background-color: rgba(248, 81, 73, 0.15);
 }
 
-.agent-client-diff-line-removed .agent-client-diff-line-marker {
+.obsidianaitools-diff-line-removed .obsidianaitools-diff-line-marker {
 	color: var(--color-red);
 }
 
-.agent-client-diff-line-context {
+.obsidianaitools-diff-line-context {
 	background-color: transparent;
 }
 
-.agent-client-diff-line-context .agent-client-diff-line-marker {
+.obsidianaitools-diff-line-context .obsidianaitools-diff-line-marker {
 	color: var(--text-faint);
 }
 
 /* Hunk header styling */
-.agent-client-diff-hunk-header {
+.obsidianaitools-diff-hunk-header {
 	padding: 4px 12px;
 	background-color: var(--background-secondary-alt);
 	color: var(--text-muted);
@@ -1139,19 +1139,19 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Word-level diff highlighting */
-.agent-client-diff-word-added {
+.obsidianaitools-diff-word-added {
 	background-color: rgba(46, 160, 67, 0.4);
 	font-weight: 600;
 }
 
-.agent-client-diff-word-removed {
+.obsidianaitools-diff-word-removed {
 	background-color: rgba(248, 81, 73, 0.4);
 	font-weight: 600;
 	text-decoration: line-through;
 }
 
 /* Diff Expand/Collapse Bar */
-.agent-client-diff-expand-bar {
+.obsidianaitools-diff-expand-bar {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -1163,30 +1163,30 @@ If your plugin does not need CSS, delete this file.
 	transition: background-color 0.1s ease;
 }
 
-.agent-client-diff-expand-bar:hover {
+.obsidianaitools-diff-expand-bar:hover {
 	background-color: var(--background-modifier-hover);
 }
 
-.agent-client-diff-expand-text {
+.obsidianaitools-diff-expand-text {
 	font-size: 11px;
 	color: var(--text-muted);
 	font-family: var(--font-monospace);
 }
 
-.agent-client-diff-expand-icon {
+.obsidianaitools-diff-expand-icon {
 	font-size: 0.8em;
 	color: var(--text-muted);
 	margin-left: 8px;
 }
 
 /* Tool Call Details */
-.agent-client-tool-call-read-details,
-.agent-client-tool-call-edit-details,
-.agent-client-tool-call-delete-details,
-.agent-client-tool-call-move-details,
-.agent-client-tool-call-search-details,
-.agent-client-tool-call-execute-details,
-.agent-client-tool-call-fetch-details {
+.obsidianaitools-tool-call-read-details,
+.obsidianaitools-tool-call-edit-details,
+.obsidianaitools-tool-call-delete-details,
+.obsidianaitools-tool-call-move-details,
+.obsidianaitools-tool-call-search-details,
+.obsidianaitools-tool-call-execute-details,
+.obsidianaitools-tool-call-fetch-details {
 	padding: 4px 0;
 	font-size: 12px;
 	color: var(--text-muted);
@@ -1196,14 +1196,14 @@ If your plugin does not need CSS, delete this file.
 	max-width: 100%;
 }
 
-.agent-client-tool-call-location {
+.obsidianaitools-tool-call-location {
 	padding: 2px 0;
 	overflow-wrap: break-word;
 	word-wrap: break-word;
 	word-break: break-word;
 }
 
-.agent-client-tool-call-line {
+.obsidianaitools-tool-call-line {
 	color: var(--text-accent);
 	font-weight: 500;
 	overflow-wrap: break-word;
@@ -1211,7 +1211,7 @@ If your plugin does not need CSS, delete this file.
 	word-break: break-word;
 }
 
-.agent-client-tool-call-content {
+.obsidianaitools-tool-call-content {
 	padding: 8px 0;
 	overflow-wrap: break-word;
 	word-wrap: break-word;
@@ -1219,7 +1219,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* ===== Image Preview Strip ===== */
-.agent-client-image-preview-strip {
+.obsidianaitools-image-preview-strip {
 	display: flex;
 	gap: 8px;
 	padding: 8px 12px;
@@ -1229,27 +1229,27 @@ If your plugin does not need CSS, delete this file.
 	-ms-overflow-style: none;
 }
 
-.agent-client-image-preview-strip::-webkit-scrollbar {
+.obsidianaitools-image-preview-strip::-webkit-scrollbar {
 	height: 4px;
 }
 
-.agent-client-image-preview-strip::-webkit-scrollbar-track {
+.obsidianaitools-image-preview-strip::-webkit-scrollbar-track {
 	background: transparent;
 }
 
-.agent-client-image-preview-strip::-webkit-scrollbar-thumb {
+.obsidianaitools-image-preview-strip::-webkit-scrollbar-thumb {
 	background-color: var(--background-modifier-border);
 	border-radius: 2px;
 }
 
-.agent-client-image-preview-item {
+.obsidianaitools-image-preview-item {
 	position: relative;
 	flex-shrink: 0;
 	width: 64px;
 	height: 64px;
 }
 
-.agent-client-image-preview-thumbnail {
+.obsidianaitools-image-preview-thumbnail {
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
@@ -1258,7 +1258,7 @@ If your plugin does not need CSS, delete this file.
 	border: 1px solid var(--background-modifier-border);
 }
 
-.agent-client-image-preview-remove {
+.obsidianaitools-image-preview-remove {
 	position: absolute;
 	top: -6px;
 	right: -6px;
@@ -1278,22 +1278,22 @@ If your plugin does not need CSS, delete this file.
 	box-shadow: none !important;
 }
 
-.agent-client-image-preview-remove svg {
+.obsidianaitools-image-preview-remove svg {
 	width: 12px;
 	height: 12px;
 }
 
-.agent-client-image-preview-item:hover .agent-client-image-preview-remove {
+.obsidianaitools-image-preview-item:hover .obsidianaitools-image-preview-remove {
 	opacity: 1;
 }
 
 /* ===== Message Image (in chat history) ===== */
-.agent-client-message-image {
+.obsidianaitools-message-image {
 	display: inline-block;
 	margin: 4px 4px 4px 0;
 }
 
-.agent-client-message-image-thumbnail {
+.obsidianaitools-message-image-thumbnail {
 	width: 120px;
 	height: 120px;
 	object-fit: cover;
@@ -1303,7 +1303,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* ===== Message Images Strip (horizontal scroll in chat history) ===== */
-.agent-client-message-images-strip {
+.obsidianaitools-message-images-strip {
 	display: flex;
 	gap: 8px;
 	padding: 8px 0;
@@ -1312,32 +1312,32 @@ If your plugin does not need CSS, delete this file.
 	-ms-overflow-style: none;
 }
 
-.agent-client-message-images-strip::-webkit-scrollbar {
+.obsidianaitools-message-images-strip::-webkit-scrollbar {
 	height: 4px;
 }
 
-.agent-client-message-images-strip::-webkit-scrollbar-track {
+.obsidianaitools-message-images-strip::-webkit-scrollbar-track {
 	background: transparent;
 }
 
-.agent-client-message-images-strip::-webkit-scrollbar-thumb {
+.obsidianaitools-message-images-strip::-webkit-scrollbar-thumb {
 	background-color: var(--background-modifier-border);
 	border-radius: 2px;
 }
 
-.agent-client-message-images-strip .agent-client-message-image {
+.obsidianaitools-message-images-strip .obsidianaitools-message-image {
 	flex-shrink: 0;
 	margin: 0;
 }
 
 /* ===== Session History Modal ===== */
-.agent-client-session-history-filter {
+.obsidianaitools-session-history-filter {
 	margin-bottom: 16px;
 	padding-bottom: 12px;
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.agent-client-session-history-filter-label {
+.obsidianaitools-session-history-filter-label {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -1346,17 +1346,17 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-normal);
 }
 
-.agent-client-session-history-filter-label input[type="checkbox"] {
+.obsidianaitools-session-history-filter-label input[type="checkbox"] {
 	cursor: pointer;
 }
 
-.agent-client-session-history-list {
+.obsidianaitools-session-history-list {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
 }
 
-.agent-client-session-history-item {
+.obsidianaitools-session-history-item {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -1366,12 +1366,12 @@ If your plugin does not need CSS, delete this file.
 	border: 1px solid var(--background-modifier-border);
 }
 
-.agent-client-session-history-item-content {
+.obsidianaitools-session-history-item-content {
 	flex: 1;
 	min-width: 0;
 }
 
-.agent-client-session-history-item-title {
+.obsidianaitools-session-history-item-title {
 	font-weight: 500;
 	font-size: 14px;
 	color: var(--text-normal);
@@ -1381,18 +1381,18 @@ If your plugin does not need CSS, delete this file.
 	white-space: nowrap;
 }
 
-.agent-client-session-history-item-metadata {
+.obsidianaitools-session-history-item-metadata {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 }
 
-.agent-client-session-history-item-timestamp {
+.obsidianaitools-session-history-item-timestamp {
 	font-size: 12px;
 	color: var(--text-muted);
 }
 
-.agent-client-session-history-item-actions {
+.obsidianaitools-session-history-item-actions {
 	display: flex;
 	align-items: center;
 	gap: 6px;
@@ -1400,7 +1400,7 @@ If your plugin does not need CSS, delete this file.
 	margin-left: 12px;
 }
 
-.agent-client-session-history-action-icon {
+.obsidianaitools-session-history-action-icon {
 	width: 24px;
 	height: 24px;
 	display: flex;
@@ -1412,38 +1412,38 @@ If your plugin does not need CSS, delete this file.
 	transition: all 0.2s;
 }
 
-.agent-client-session-history-action-icon:hover {
+.obsidianaitools-session-history-action-icon:hover {
 	background: var(--background-modifier-hover);
 	color: var(--text-normal);
 }
 
-.agent-client-session-history-action-icon svg {
+.obsidianaitools-session-history-action-icon svg {
 	width: 16px;
 	height: 16px;
 }
 
-.agent-client-session-history-restore-icon:hover {
+.obsidianaitools-session-history-restore-icon:hover {
 	color: var(--text-accent);
 }
 
-.agent-client-session-history-fork-icon:hover {
+.obsidianaitools-session-history-fork-icon:hover {
 	color: var(--text-accent);
 }
 
-.agent-client-session-history-loading,
-.agent-client-session-history-empty,
-.agent-client-session-history-error {
+.obsidianaitools-session-history-loading,
+.obsidianaitools-session-history-empty,
+.obsidianaitools-session-history-error {
 	padding: 32px;
 	text-align: center;
 	color: var(--text-muted);
 }
 
-.agent-client-session-history-error-text {
+.obsidianaitools-session-history-error-text {
 	color: var(--text-error);
 	margin-bottom: 12px;
 }
 
-.agent-client-session-history-retry-button {
+.obsidianaitools-session-history-retry-button {
 	padding: 6px 12px;
 	background: var(--interactive-accent);
 	color: var(--text-on-accent);
@@ -1452,12 +1452,12 @@ If your plugin does not need CSS, delete this file.
 	cursor: pointer;
 }
 
-.agent-client-session-history-load-more {
+.obsidianaitools-session-history-load-more {
 	margin-top: 16px;
 	text-align: center;
 }
 
-.agent-client-session-history-load-more-button {
+.obsidianaitools-session-history-load-more-button {
 	padding: 8px 16px;
 	background: var(--background-secondary);
 	border: 1px solid var(--background-modifier-border);
@@ -1467,17 +1467,17 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-normal);
 }
 
-.agent-client-session-history-load-more-button:hover {
+.obsidianaitools-session-history-load-more-button:hover {
 	background: var(--background-modifier-hover);
 }
 
-.agent-client-session-history-load-more-button:disabled {
+.obsidianaitools-session-history-load-more-button:disabled {
 	opacity: 0.5;
 	cursor: not-allowed;
 }
 
 /* Debug mode manual input form */
-.agent-client-session-history-debug {
+.obsidianaitools-session-history-debug {
 	margin-bottom: 16px;
 	padding: 12px;
 	background: var(--background-secondary);
@@ -1485,24 +1485,24 @@ If your plugin does not need CSS, delete this file.
 	border: 1px dashed var(--text-muted);
 }
 
-.agent-client-session-history-debug h3 {
+.obsidianaitools-session-history-debug h3 {
 	margin: 0 0 12px 0;
 	font-size: 14px;
 	color: var(--text-muted);
 }
 
-.agent-client-session-history-debug-group {
+.obsidianaitools-session-history-debug-group {
 	margin-bottom: 10px;
 }
 
-.agent-client-session-history-debug-group label {
+.obsidianaitools-session-history-debug-group label {
 	display: block;
 	margin-bottom: 4px;
 	font-size: 12px;
 	color: var(--text-muted);
 }
 
-.agent-client-session-history-debug-input {
+.obsidianaitools-session-history-debug-input {
 	width: 100%;
 	padding: 6px 8px;
 	font-size: 13px;
@@ -1512,13 +1512,13 @@ If your plugin does not need CSS, delete this file.
 	background: var(--background-primary);
 }
 
-.agent-client-session-history-debug-actions {
+.obsidianaitools-session-history-debug-actions {
 	display: flex;
 	gap: 8px;
 	margin-top: 12px;
 }
 
-.agent-client-session-history-debug-button {
+.obsidianaitools-session-history-debug-button {
 	padding: 6px 12px;
 	font-size: 13px;
 	border-radius: 4px;
@@ -1528,18 +1528,18 @@ If your plugin does not need CSS, delete this file.
 	border: none;
 }
 
-.agent-client-session-history-debug-button:hover {
+.obsidianaitools-session-history-debug-button:hover {
 	background: var(--interactive-accent-hover);
 }
 
-.agent-client-session-history-debug-separator {
+.obsidianaitools-session-history-debug-separator {
 	margin: 16px 0;
 	border: none;
 	border-top: 1px solid var(--background-modifier-border);
 }
 
 /* Local sessions banner */
-.agent-client-session-history-local-banner {
+.obsidianaitools-session-history-local-banner {
 	padding: 8px 12px;
 	margin-bottom: 12px;
 	background: var(--background-secondary);
@@ -1550,7 +1550,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Warning banner for agents that don't support restoration */
-.agent-client-session-history-warning-banner {
+.obsidianaitools-session-history-warning-banner {
 	padding: 8px 12px;
 	margin-bottom: 12px;
 	background: var(--background-secondary);
@@ -1558,42 +1558,42 @@ If your plugin does not need CSS, delete this file.
 	border-left: 3px solid var(--text-warning);
 }
 
-.agent-client-session-history-warning-banner p {
+.obsidianaitools-session-history-warning-banner p {
 	margin: 0;
 	color: var(--text-muted);
 	font-size: 12px;
 }
 
 /* Delete button */
-.agent-client-session-history-delete-icon {
+.obsidianaitools-session-history-delete-icon {
 	color: var(--text-muted);
 }
 
-.agent-client-session-history-delete-icon:hover {
+.obsidianaitools-session-history-delete-icon:hover {
 	color: var(--text-error);
 }
 
 /* Confirm delete modal */
-.agent-client-confirm-delete-message {
+.obsidianaitools-confirm-delete-message {
 	margin-bottom: 8px;
 }
 
-.agent-client-confirm-delete-warning {
+.obsidianaitools-confirm-delete-warning {
 	color: var(--text-muted);
 	font-size: var(--font-ui-small);
 	margin-bottom: 16px;
 }
 
-.agent-client-confirm-delete-buttons {
+.obsidianaitools-confirm-delete-buttons {
 	display: flex;
 	justify-content: flex-end;
 	gap: 8px;
 }
 
-.agent-client-confirm-delete-cancel {
+.obsidianaitools-confirm-delete-cancel {
 	/* Uses default button styles */
 }
 
-.agent-client-confirm-delete-confirm {
+.obsidianaitools-confirm-delete-confirm {
 	/* mod-warning class provides warning color */
 }

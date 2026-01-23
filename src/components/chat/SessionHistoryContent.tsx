@@ -154,49 +154,49 @@ function DebugForm({
 	}, [sessionId, cwd, currentCwd, onForkSession, onClose]);
 
 	return (
-		<div className="agent-client-session-history-debug">
+		<div className="obsidianaitools-session-history-debug">
 			<h3>Debug: Manual Session Input</h3>
 
-			<div className="agent-client-session-history-debug-group">
+			<div className="obsidianaitools-session-history-debug-group">
 				<label htmlFor="debug-session-id">Session ID:</label>
 				<input
 					id="debug-session-id"
 					type="text"
 					placeholder="Enter session ID..."
-					className="agent-client-session-history-debug-input"
+					className="obsidianaitools-session-history-debug-input"
 					value={sessionId}
 					onChange={(e) => setSessionId(e.target.value)}
 				/>
 			</div>
 
-			<div className="agent-client-session-history-debug-group">
+			<div className="obsidianaitools-session-history-debug-group">
 				<label htmlFor="debug-cwd">Working Directory (cwd):</label>
 				<input
 					id="debug-cwd"
 					type="text"
 					placeholder="Enter working directory..."
-					className="agent-client-session-history-debug-input"
+					className="obsidianaitools-session-history-debug-input"
 					value={cwd}
 					onChange={(e) => setCwd(e.target.value)}
 				/>
 			</div>
 
-			<div className="agent-client-session-history-debug-actions">
+			<div className="obsidianaitools-session-history-debug-actions">
 				<button
-					className="agent-client-session-history-debug-button"
+					className="obsidianaitools-session-history-debug-button"
 					onClick={handleRestore}
 				>
 					Restore
 				</button>
 				<button
-					className="agent-client-session-history-debug-button"
+					className="obsidianaitools-session-history-debug-button"
 					onClick={handleFork}
 				>
 					Fork
 				</button>
 			</div>
 
-			<hr className="agent-client-session-history-debug-separator" />
+			<hr className="obsidianaitools-session-history-debug-separator" />
 		</div>
 	);
 }
@@ -236,28 +236,28 @@ function SessionItem({
 	}, [session.sessionId, onDeleteSession]);
 
 	return (
-		<div className="agent-client-session-history-item">
-			<div className="agent-client-session-history-item-content">
-				<div className="agent-client-session-history-item-title">
+		<div className="obsidianaitools-session-history-item">
+			<div className="obsidianaitools-session-history-item-content">
+				<div className="obsidianaitools-session-history-item-title">
 					<span>
 						{truncateTitle(session.title ?? "Untitled Session")}
 					</span>
 				</div>
-				<div className="agent-client-session-history-item-metadata">
+				<div className="obsidianaitools-session-history-item-metadata">
 					{session.updatedAt && (
-						<span className="agent-client-session-history-item-timestamp">
+						<span className="obsidianaitools-session-history-item-timestamp">
 							{formatRelativeTime(new Date(session.updatedAt))}
 						</span>
 					)}
 				</div>
 			</div>
 
-			<div className="agent-client-session-history-item-actions">
+			<div className="obsidianaitools-session-history-item-actions">
 				{canRestore && (
 					<IconButton
 						iconName="play"
 						label="Restore session"
-						className="agent-client-session-history-action-icon agent-client-session-history-restore-icon"
+						className="obsidianaitools-session-history-action-icon obsidianaitools-session-history-restore-icon"
 						onClick={handleRestore}
 					/>
 				)}
@@ -265,14 +265,14 @@ function SessionItem({
 					<IconButton
 						iconName="git-branch"
 						label="Fork session (create new branch)"
-						className="agent-client-session-history-action-icon agent-client-session-history-fork-icon"
+						className="obsidianaitools-session-history-action-icon obsidianaitools-session-history-fork-icon"
 						onClick={handleFork}
 					/>
 				)}
 				<IconButton
 					iconName="trash-2"
 					label="Delete session"
-					className="agent-client-session-history-action-icon agent-client-session-history-delete-icon"
+					className="obsidianaitools-session-history-action-icon obsidianaitools-session-history-delete-icon"
 					onClick={handleDelete}
 				/>
 			</div>
@@ -329,7 +329,7 @@ export function SessionHistoryContent({
 	// Show preparing message if agent is not ready
 	if (!isAgentReady) {
 		return (
-			<div className="agent-client-session-history-loading">
+			<div className="obsidianaitools-session-history-loading">
 				<p>Preparing agent...</p>
 			</div>
 		);
@@ -358,25 +358,25 @@ export function SessionHistoryContent({
 
 			{/* Warning banner for agents that don't support restoration */}
 			{!canPerformAnyOperation && (
-				<div className="agent-client-session-history-warning-banner">
+				<div className="obsidianaitools-session-history-warning-banner">
 					<p>This agent does not support session restoration.</p>
 				</div>
 			)}
 
 			{/* Local sessions banner */}
 			{(isUsingLocalSessions || !canPerformAnyOperation) && (
-				<div className="agent-client-session-history-local-banner">
+				<div className="obsidianaitools-session-history-local-banner">
 					<span>These sessions are saved in the plugin.</span>
 				</div>
 			)}
 
 			{/* No list capability message */}
 			{!canShowList && !debugMode && (
-				<div className="agent-client-session-history-empty">
-					<p className="agent-client-session-history-empty-text">
+				<div className="obsidianaitools-session-history-empty">
+					<p className="obsidianaitools-session-history-empty-text">
 						Session list is not available for this agent.
 					</p>
-					<p className="agent-client-session-history-empty-text">
+					<p className="obsidianaitools-session-history-empty-text">
 						Enable Debug Mode in settings to manually enter session
 						IDs.
 					</p>
@@ -387,8 +387,8 @@ export function SessionHistoryContent({
 				<>
 					{/* Filter toggle - only for agent session/list */}
 					{canList && !isUsingLocalSessions && (
-						<div className="agent-client-session-history-filter">
-							<label className="agent-client-session-history-filter-label">
+						<div className="obsidianaitools-session-history-filter">
+							<label className="obsidianaitools-session-history-filter-label">
 								<input
 									type="checkbox"
 									checked={filterByCurrentVault}
@@ -401,12 +401,12 @@ export function SessionHistoryContent({
 
 					{/* Error state */}
 					{error && (
-						<div className="agent-client-session-history-error">
-							<p className="agent-client-session-history-error-text">
+						<div className="obsidianaitools-session-history-error">
+							<p className="obsidianaitools-session-history-error-text">
 								{error}
 							</p>
 							<button
-								className="agent-client-session-history-retry-button"
+								className="obsidianaitools-session-history-retry-button"
 								onClick={handleRetry}
 							>
 								Retry
@@ -416,15 +416,15 @@ export function SessionHistoryContent({
 
 					{/* Loading state */}
 					{!error && loading && sessions.length === 0 && (
-						<div className="agent-client-session-history-loading">
+						<div className="obsidianaitools-session-history-loading">
 							<p>Loading sessions...</p>
 						</div>
 					)}
 
 					{/* Empty state */}
 					{!error && !loading && sessions.length === 0 && (
-						<div className="agent-client-session-history-empty">
-							<p className="agent-client-session-history-empty-text">
+						<div className="obsidianaitools-session-history-empty">
+							<p className="obsidianaitools-session-history-empty-text">
 								No previous sessions
 							</p>
 						</div>
@@ -432,7 +432,7 @@ export function SessionHistoryContent({
 
 					{/* Session list */}
 					{!error && sessions.length > 0 && (
-						<div className="agent-client-session-history-list">
+						<div className="obsidianaitools-session-history-list">
 							{sessions.map((session) => (
 								<SessionItem
 									key={session.sessionId}
@@ -450,9 +450,9 @@ export function SessionHistoryContent({
 
 					{/* Load more button */}
 					{!error && hasMore && (
-						<div className="agent-client-session-history-load-more">
+						<div className="obsidianaitools-session-history-load-more">
 							<button
-								className="agent-client-session-history-load-more-button"
+								className="obsidianaitools-session-history-load-more-button"
 								disabled={loading}
 								onClick={onLoadMore}
 							>

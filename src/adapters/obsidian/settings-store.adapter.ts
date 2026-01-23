@@ -228,7 +228,7 @@ export class SettingsStore implements ISettingsAccess {
 	 * @returns Path to sessions directory
 	 */
 	private getSessionsDir(): string {
-		return `${this.plugin.app.vault.configDir}/plugins/agent-client/sessions`;
+		return `${this.plugin.app.vault.configDir}/plugins/obsidianaitools/sessions`;
 	}
 
 	/**

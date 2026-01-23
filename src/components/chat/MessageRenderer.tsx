@@ -66,7 +66,7 @@ export function MessageRenderer({
 
 	return (
 		<div
-			className={`agent-client-message-renderer ${message.role === "user" ? "agent-client-message-user" : "agent-client-message-assistant"}`}
+			className={`obsidianaitools-message-renderer ${message.role === "user" ? "obsidianaitools-message-user" : "obsidianaitools-message-assistant"}`}
 		>
 			{groups.map((group, idx) => {
 				if (group.type === "images") {
@@ -74,7 +74,7 @@ export function MessageRenderer({
 					return (
 						<div
 							key={idx}
-							className="agent-client-message-images-strip"
+							className="obsidianaitools-message-images-strip"
 						>
 							{group.items.map((content, imgIdx) => (
 								<MessageContentRenderer

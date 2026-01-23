@@ -82,21 +82,21 @@ export function ToolCallRenderer({
 	};
 
 	return (
-		<div className="agent-client-message-tool-call">
+		<div className="obsidianaitools-message-tool-call">
 			{/* Header */}
-			<div className="agent-client-message-tool-call-header">
-				<div className="agent-client-message-tool-call-title">
-					<span className="agent-client-message-tool-call-icon">
+			<div className="obsidianaitools-message-tool-call-header">
+				<div className="obsidianaitools-message-tool-call-title">
+					<span className="obsidianaitools-message-tool-call-icon">
 						{getKindIcon(kind)}
 					</span>
 					{title}
 				</div>
 				{locations && locations.length > 0 && (
-					<div className="agent-client-message-tool-call-locations">
+					<div className="obsidianaitools-message-tool-call-locations">
 						{locations.map((loc, idx) => (
 							<span
 								key={idx}
-								className="agent-client-message-tool-call-location"
+								className="obsidianaitools-message-tool-call-location"
 							>
 								{toRelativePath(loc.path, vaultPath)}
 								{loc.line != null && `:${loc.line}`}
@@ -104,14 +104,14 @@ export function ToolCallRenderer({
 						))}
 					</div>
 				)}
-				<div className="agent-client-message-tool-call-status">
+				<div className="obsidianaitools-message-tool-call-status">
 					Status: {status}
 				</div>
 			</div>
 
 			{/* Kind-specific details */}
 			{/* kind && (
-				<div className="agent-client-message-tool-call-details">
+				<div className="obsidianaitools-message-tool-call-details">
 					<ToolCallDetails
 						kind={kind}
 						locations={locations}
@@ -156,7 +156,7 @@ export function ToolCallRenderer({
 						// Handle content blocks (text, image, etc.)
 						if ("text" in item.content) {
 							return (
-								<div key={index} className="agent-client-tool-call-content">
+								<div key={index} className="obsidianaitools-tool-call-content">
 									<MarkdownTextRenderer
 										text={item.content.text}
 										app={plugin.app}
@@ -231,12 +231,12 @@ function ReadDetails({
 	if (!locations || locations.length === 0) return null;
 
 	return (
-		<div className="agent-client-tool-call-read-details">
+		<div className="obsidianaitools-tool-call-read-details">
 			{locations.map((loc, idx) => (
-				<div key={idx} className="agent-client-tool-call-location">
+				<div key={idx} className="obsidianaitools-tool-call-location">
 					📄 {loc.path}
 					{loc.line !== null && loc.line !== undefined && (
-						<span className="agent-client-tool-call-line">:{loc.line}</span>
+						<span className="obsidianaitools-tool-call-line">:{loc.line}</span>
 					)}
 				</div>
 			))}
@@ -254,9 +254,9 @@ function EditDetails({
 	if (!locations || locations.length === 0) return null;
 
 	return (
-		<div className="agent-client-tool-call-edit-details">
+		<div className="obsidianaitools-tool-call-edit-details">
 			{locations.map((loc, idx) => (
-				<div key={idx} className="agent-client-tool-call-location">
+				<div key={idx} className="obsidianaitools-tool-call-location">
 					📝 Editing: {loc.path}
 				</div>
 			))}
@@ -274,9 +274,9 @@ function DeleteDetails({
 	if (!locations || locations.length === 0) return null;
 
 	return (
-		<div className="agent-client-tool-call-delete-details">
+		<div className="obsidianaitools-tool-call-delete-details">
 			{locations.map((loc, idx) => (
-				<div key={idx} className="agent-client-tool-call-location">
+				<div key={idx} className="obsidianaitools-tool-call-location">
 					🗑️ Deleting: {loc.path}
 				</div>
 			))}
@@ -301,7 +301,7 @@ function MoveDetails({
 		elements.push(<div key="to">To: {String(rawInput.to)}</div>);
 	}
 
-	return <div className="agent-client-tool-call-move-details">{elements}</div>;
+	return <div className="obsidianaitools-tool-call-move-details">{elements}</div>;
 }
 
 function SearchDetails({
@@ -316,20 +316,20 @@ function SearchDetails({
 	const elements = [];
 	if (rawInput.query) {
 		elements.push(
-			<div key="query" className="agent-client-tool-call-search-query">
+			<div key="query" className="obsidianaitools-tool-call-search-query">
 				🔍 Query: "{String(rawInput.query)}"
 			</div>,
 		);
 	}
 	if (rawInput.pattern) {
 		elements.push(
-			<div key="pattern" className="agent-client-tool-call-search-pattern">
+			<div key="pattern" className="obsidianaitools-tool-call-search-pattern">
 				Pattern: {String(rawInput.pattern)}
 			</div>,
 		);
 	}
 
-	return <div className="agent-client-tool-call-search-details">{elements}</div>;
+	return <div className="obsidianaitools-tool-call-search-details">{elements}</div>;
 }
 
 function ExecuteDetails({
@@ -344,20 +344,20 @@ function ExecuteDetails({
 	const elements = [];
 	if (rawInput.command) {
 		elements.push(
-			<div key="command" className="agent-client-tool-call-execute-command">
+			<div key="command" className="obsidianaitools-tool-call-execute-command">
 				💻 Command: <code>{String(rawInput.command)}</code>
 			</div>,
 		);
 	}
 	if (rawInput.cwd) {
 		elements.push(
-			<div key="cwd" className="agent-client-tool-call-execute-cwd">
+			<div key="cwd" className="obsidianaitools-tool-call-execute-cwd">
 				Directory: {String(rawInput.cwd)}
 			</div>,
 		);
 	}
 
-	return <div className="agent-client-tool-call-execute-details">{elements}</div>;
+	return <div className="obsidianaitools-tool-call-execute-details">{elements}</div>;
 }
 
 function FetchDetails({
@@ -372,20 +372,20 @@ function FetchDetails({
 	const elements = [];
 	if (rawInput.url) {
 		elements.push(
-			<div key="url" className="agent-client-tool-call-fetch-url">
+			<div key="url" className="obsidianaitools-tool-call-fetch-url">
 				🌐 URL: {String(rawInput.url)}
 			</div>,
 		);
 	}
 	if (rawInput.query) {
 		elements.push(
-			<div key="query" className="agent-client-tool-call-fetch-query">
+			<div key="query" className="obsidianaitools-tool-call-fetch-query">
 				🔍 Search: "{String(rawInput.query)}"
 			</div>,
 		);
 	}
 
-	return <div className="agent-client-tool-call-fetch-details">{elements}</div>;
+	return <div className="obsidianaitools-tool-call-fetch-details">{elements}</div>;
 }
 */
 
@@ -464,7 +464,7 @@ function renderWordDiff(
 					return (
 						<span
 							key={partIdx}
-							className="agent-client-diff-word-added"
+							className="obsidianaitools-diff-word-added"
 						>
 							{part.value}
 						</span>
@@ -473,7 +473,7 @@ function renderWordDiff(
 					return (
 						<span
 							key={partIdx}
-							className="agent-client-diff-word-removed"
+							className="obsidianaitools-diff-word-removed"
 						>
 							{part.value}
 						</span>
@@ -589,35 +589,35 @@ function DiffRenderer({
 
 		if (isHunkHeader) {
 			return (
-				<div key={idx} className="agent-client-diff-hunk-header">
+				<div key={idx} className="obsidianaitools-diff-hunk-header">
 					{line.content}
 				</div>
 			);
 		}
 
-		let lineClass = "agent-client-diff-line";
+		let lineClass = "obsidianaitools-diff-line";
 		let marker = " ";
 
 		if (line.type === "added") {
-			lineClass += " agent-client-diff-line-added";
+			lineClass += " obsidianaitools-diff-line-added";
 			marker = "+";
 		} else if (line.type === "removed") {
-			lineClass += " agent-client-diff-line-removed";
+			lineClass += " obsidianaitools-diff-line-removed";
 			marker = "-";
 		} else {
-			lineClass += " agent-client-diff-line-context";
+			lineClass += " obsidianaitools-diff-line-context";
 		}
 
 		return (
 			<div key={idx} className={lineClass}>
-				<span className="agent-client-diff-line-number agent-client-diff-line-number-old">
+				<span className="obsidianaitools-diff-line-number obsidianaitools-diff-line-number-old">
 					{line.oldLineNumber ?? ""}
 				</span>
-				<span className="agent-client-diff-line-number agent-client-diff-line-number-new">
+				<span className="obsidianaitools-diff-line-number obsidianaitools-diff-line-number-new">
 					{line.newLineNumber ?? ""}
 				</span>
-				<span className="agent-client-diff-line-marker">{marker}</span>
-				<span className="agent-client-diff-line-content">
+				<span className="obsidianaitools-diff-line-marker">{marker}</span>
+				<span className="obsidianaitools-diff-line-content">
 					{line.wordDiff &&
 					(line.type === "added" || line.type === "removed")
 						? renderWordDiff(line.wordDiff, line.type)
@@ -642,24 +642,24 @@ function DiffRenderer({
 	const remainingLines = diffLines.length - collapseThreshold;
 
 	return (
-		<div className="agent-client-tool-call-diff">
+		<div className="obsidianaitools-tool-call-diff">
 			{isNewFile(diff) ? (
-				<div className="agent-client-diff-line-info">New file</div>
+				<div className="obsidianaitools-diff-line-info">New file</div>
 			) : null}
-			<div className="agent-client-tool-call-diff-content">
+			<div className="obsidianaitools-tool-call-diff-content">
 				{visibleLines.map((line, idx) => renderLine(line, idx))}
 			</div>
 			{shouldCollapse && (
 				<div
-					className="agent-client-diff-expand-bar"
+					className="obsidianaitools-diff-expand-bar"
 					onClick={() => setIsCollapsed(!isCollapsed)}
 				>
-					<span className="agent-client-diff-expand-text">
+					<span className="obsidianaitools-diff-expand-text">
 						{isCollapsed
 							? `${remainingLines} more lines`
 							: "Collapse"}
 					</span>
-					<span className="agent-client-diff-expand-icon">
+					<span className="obsidianaitools-diff-expand-icon">
 						{isCollapsed ? "▶" : "▲"}
 					</span>
 				</div>

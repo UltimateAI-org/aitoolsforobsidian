@@ -103,31 +103,31 @@ export function TerminalRenderer({
 	}, [isRunning]);
 
 	return (
-		<div className="agent-client-terminal-renderer">
-			<div className="agent-client-terminal-renderer-header">
+		<div className="obsidianaitools-terminal-renderer">
+			<div className="obsidianaitools-terminal-renderer-header">
 				🖥️ Terminal {terminalId.slice(0, 8)}
 				{isRunning ? (
-					<span className="agent-client-terminal-status agent-client-running">
+					<span className="obsidianaitools-terminal-status obsidianaitools-running">
 						● RUNNING
 					</span>
 				) : isCancelled ? (
-					<span className="agent-client-terminal-status agent-client-cancelled">
+					<span className="obsidianaitools-terminal-status obsidianaitools-cancelled">
 						● CANCELLED
 					</span>
 				) : (
-					<span className="agent-client-terminal-status agent-client-finished">
+					<span className="obsidianaitools-terminal-status obsidianaitools-finished">
 						● FINISHED
 					</span>
 				)}
 			</div>
 
-			<div className="agent-client-terminal-renderer-output">
+			<div className="obsidianaitools-terminal-renderer-output">
 				{output || (isRunning ? "Waiting for output..." : "No output")}
 			</div>
 
 			{exitStatus && (
 				<div
-					className={`agent-client-terminal-renderer-exit ${exitStatus.exitCode === 0 ? "agent-client-success" : "agent-client-error"}`}
+					className={`obsidianaitools-terminal-renderer-exit ${exitStatus.exitCode === 0 ? "obsidianaitools-success" : "obsidianaitools-error"}`}
 				>
 					Exit Code: {exitStatus.exitCode}
 					{exitStatus.signal && ` | Signal: ${exitStatus.signal}`}

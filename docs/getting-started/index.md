@@ -23,7 +23,7 @@ This plugin is awaiting approval for **Obsidian Community Plugins**. For now, us
    - `main.js`
    - `manifest.json`
    - `styles.css`
-2. Create the plugin folder: `VaultFolder/.obsidian/plugins/agent-client/`
+2. Create the plugin folder: `VaultFolder/.obsidian/plugins/obsidianaitools/`
 3. Place the downloaded files in this folder
 4. Enable the plugin in **Obsidian Settings → Community Plugins**
 

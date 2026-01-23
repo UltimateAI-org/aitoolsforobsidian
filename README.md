@@ -48,7 +48,7 @@ https://github.com/user-attachments/assets/1c538349-b3fb-44dd-a163-7331cbca7824
    - `main.js`
    - `manifest.json`
    - `styles.css`
-2. Create plugin folder and place the files in: `VaultFolder/.obsidian/plugins/agent-client/`
+2. Create plugin folder and place the files in: `VaultFolder/.obsidian/plugins/obsidianaitools/`
 3. Enable the plugin in Obsidian Settings → Community Plugins
 
 ## ⚙️ Configuration

@@ -53,7 +53,7 @@ interface AppWithSettings {
 	};
 }
 
-export const VIEW_TYPE_CHAT = "agent-client-chat-view";
+export const VIEW_TYPE_CHAT = "obsidianaitools-chat-view";
 
 function ChatComponent({
 	plugin,
@@ -709,7 +709,7 @@ function ChatComponent({
 		const workspace = plugin.app.workspace;
 
 		const eventRef = workspace.on(
-			"agent-client:toggle-auto-mention" as "quit",
+			"obsidianaitools:toggle-auto-mention" as "quit",
 			() => {
 				autoMention.toggle();
 			},
@@ -732,7 +732,7 @@ function ChatComponent({
 					callback: (agentId?: string) => void,
 				) => ReturnType<typeof workspace.on>;
 			}
-		).on("agent-client:new-chat-requested", (agentId?: string) => {
+		).on("obsidianaitools:new-chat-requested", (agentId?: string) => {
 			void handleNewChat(agentId);
 		});
 
@@ -745,7 +745,7 @@ function ChatComponent({
 		const workspace = plugin.app.workspace;
 
 		const approveRef = workspace.on(
-			"agent-client:approve-active-permission" as "quit",
+			"obsidianaitools:approve-active-permission" as "quit",
 			() => {
 				void (async () => {
 					const success = await permission.approveActivePermission();
@@ -759,7 +759,7 @@ function ChatComponent({
 		);
 
 		const rejectRef = workspace.on(
-			"agent-client:reject-active-permission" as "quit",
+			"obsidianaitools:reject-active-permission" as "quit",
 			() => {
 				void (async () => {
 					const success = await permission.rejectActivePermission();
@@ -773,7 +773,7 @@ function ChatComponent({
 		);
 
 		const cancelRef = workspace.on(
-			"agent-client:cancel-message" as "quit",
+			"obsidianaitools:cancel-message" as "quit",
 			() => {
 				void handleStopGeneration();
 			},
@@ -795,7 +795,7 @@ function ChatComponent({
 	// Render
 	// ============================================================
 	return (
-		<div className="agent-client-chat-view-container">
+		<div className="obsidianaitools-chat-view-container">
 			<ChatHeader
 				agentLabel={activeAgentLabel}
 				isUpdateAvailable={isUpdateAvailable}

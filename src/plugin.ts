@@ -142,7 +142,7 @@ export default class AgentClientPlugin extends Plugin {
 				void this.activateView();
 			},
 		);
-		ribbonIconEl.addClass("agent-client-ribbon-icon");
+		ribbonIconEl.addClass("obsidianaitools-ribbon-icon");
 
 		this.addCommand({
 			id: "open-chat-view",
@@ -209,7 +209,7 @@ export default class AgentClientPlugin extends Plugin {
 			if (viewContainerEl) {
 				window.setTimeout(() => {
 					const textarea = viewContainerEl.querySelector(
-						"textarea.agent-client-chat-input-textarea",
+						"textarea.obsidianaitools-chat-input-textarea",
 					);
 					if (textarea instanceof HTMLTextAreaElement) {
 						textarea.focus();
@@ -261,7 +261,7 @@ export default class AgentClientPlugin extends Plugin {
 		// Trigger new chat with specific agent
 		// Pass agentId so ChatComponent knows to force new session even if empty
 		this.app.workspace.trigger(
-			"agent-client:new-chat-requested" as "quit",
+			"obsidianaitools:new-chat-requested" as "quit",
 			agentId,
 		);
 	}
@@ -290,7 +290,7 @@ export default class AgentClientPlugin extends Plugin {
 			callback: async () => {
 				await this.activateView();
 				this.app.workspace.trigger(
-					"agent-client:approve-active-permission",
+					"obsidianaitools:approve-active-permission",
 				);
 			},
 		});
@@ -301,7 +301,7 @@ export default class AgentClientPlugin extends Plugin {
 			callback: async () => {
 				await this.activateView();
 				this.app.workspace.trigger(
-					"agent-client:reject-active-permission",
+					"obsidianaitools:reject-active-permission",
 				);
 			},
 		});
@@ -311,7 +311,7 @@ export default class AgentClientPlugin extends Plugin {
 			name: "Toggle auto-mention",
 			callback: async () => {
 				await this.activateView();
-				this.app.workspace.trigger("agent-client:toggle-auto-mention");
+				this.app.workspace.trigger("obsidianaitools:toggle-auto-mention");
 			},
 		});
 
@@ -319,7 +319,7 @@ export default class AgentClientPlugin extends Plugin {
 			id: "cancel-current-message",
 			name: "Cancel current message",
 			callback: () => {
-				this.app.workspace.trigger("agent-client:cancel-message");
+				this.app.workspace.trigger("obsidianaitools:cancel-message");
 			},
 		});
 	}

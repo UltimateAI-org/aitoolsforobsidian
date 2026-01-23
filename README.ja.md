@@ -44,7 +44,7 @@ https://github.com/user-attachments/assets/1c538349-b3fb-44dd-a163-7331cbca7824
    - `main.js`
    - `manifest.json`
    - `styles.css`
-2. プラグインのフォルダを作成し、ファイルを配置します: `VaultFolder/.obsidian/plugins/agent-client/`
+2. プラグインのフォルダを作成し、ファイルを配置します: `VaultFolder/.obsidian/plugins/obsidianaitools/`
 3. Obsidianの設定 → コミュニティプラグイン でプラグインを有効化します
 
 ## ⚙️ プラグインの設定
