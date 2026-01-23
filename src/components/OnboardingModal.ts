@@ -373,7 +373,7 @@ export class OnboardingModal extends Modal {
 			console.warn(`[Onboarding] Installing ${agent.name}...`);
 
 			const child = spawn(command, args, {
-				stdio: "inherit",
+				stdio: ["pipe", "pipe", "pipe"],
 				env: {
 					...process.env,
 					...(nodeDir && !Platform.isWin
@@ -382,13 +382,23 @@ export class OnboardingModal extends Modal {
 				},
 			});
 
+			let output = "";
+			child.stdout?.on("data", (data: unknown) => {
+				const text = typeof data === "string" ? data : String(data);
+				output += text;
+			});
+			child.stderr?.on("data", (data: unknown) => {
+				const text = typeof data === "string" ? data : String(data);
+				output += text;
+			});
+
 			child.on("close", (code: number) => {
 				if (code === 0) {
 					console.warn(`[Onboarding] Successfully installed ${agent.name}`);
 					resolve(true);
 				} else {
 					console.error(
-						`[Onboarding] Failed to install ${agent.name} (exit code: ${code})`,
+						`[Onboarding] Failed to install ${agent.name} (exit code: ${code}): ${output}`,
 					);
 					resolve(false);
 				}
