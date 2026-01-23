@@ -15,6 +15,95 @@ import type {
 } from "../domain/models/agent-config";
 import type { AgentError } from "../domain/models/agent-error";
 import { toAgentConfig } from "../shared/settings-utils";
+import {
+	getAgentInstallCommand,
+} from "../shared/agent-installer";
+import { spawn } from "child_process";
+
+// ============================================================================
+// Helper Functions for Auto-Install
+// ============================================================================
+
+/**
+ * Get the command name for a known agent
+ */
+function getCommandNameForAgent(agentId: string): string | null {
+	switch (agentId) {
+		case "claude-code-acp":
+			return "claude-code-acp";
+		case "codex-acp":
+			return "codex-acp";
+		case "gemini-cli":
+			return "gemini";
+		default:
+			return null;
+	}
+}
+
+/**
+ * Install an agent if needed and return true on success
+ */
+async function installAgentIfNeeded(
+	agentId: string,
+	nodePath: string,
+): Promise<boolean> {
+	const installCommand = getAgentInstallCommand(agentId);
+	if (!installCommand) return false;
+
+	// Derive npm path from node path
+	const nodeDir = nodePath.trim() ? nodePath.trim().replace(/\/node$/, "") : "";
+	const npmExec = nodeDir ? `${nodeDir}/npm` : "npm";
+
+	// Build command
+	let command: string;
+	let args: string[];
+	const packageName = installCommand.replace("npm install -g ", "");
+
+	if (process.platform === "win32") {
+		command = "cmd.exe";
+		args = ["/c", `${npmExec} install -g ${packageName}`];
+	} else {
+		command = "/bin/bash";
+		args = ["-l", "-c", `${npmExec} install -g ${packageName}`];
+	}
+
+	return new Promise((resolve) => {
+		const child = spawn(command, args, {
+			stdio: "inherit",
+			env: {
+				...process.env,
+				...(nodeDir
+					? { PATH: `${nodeDir}:${process.env.PATH || ""}` }
+					: {}),
+			},
+		});
+
+		child.on("close", (code: number) => {
+			resolve(code === 0);
+		});
+
+		child.on("error", () => {
+			resolve(false);
+		});
+	});
+}
+
+/**
+ * Update the agent command in settings
+ */
+function updateAgentCommand(
+	settings: AgentClientPluginSettings,
+	agentId: string,
+	command: string,
+): void {
+	if (agentId === settings.claude.id) {
+		settings.claude.command = command;
+	} else if (agentId === settings.codex.id) {
+		settings.codex.command = command;
+	} else if (agentId === settings.gemini.id) {
+		settings.gemini.command = command;
+	}
+}
 
 // ============================================================================
 // Types
@@ -408,6 +497,36 @@ export function useAgentSession(
 				activeAgentId,
 				workingDirectory,
 			);
+
+			// Auto-install known agents if command is not configured
+			if (
+				settings.autoInstallAgents &&
+				(!agentSettings.command || agentSettings.command.trim().length === 0)
+			) {
+				const commandName = getCommandNameForAgent(activeAgentId);
+				if (commandName) {
+					// Install the agent
+					const installed = await installAgentIfNeeded(
+						activeAgentId,
+						settings.nodePath,
+					);
+					if (installed) {
+						// Update settings with command path
+						updateAgentCommand(settings, activeAgentId, commandName);
+						// Rebuild agent config with new command
+						const updatedSettings = settingsAccess.getSnapshot();
+						const updatedAgentSettings = findAgentSettings(
+							updatedSettings,
+							activeAgentId,
+						);
+						if (updatedAgentSettings) {
+							Object.assign(agentSettings, {
+								command: commandName,
+							});
+						}
+					}
+				}
+			}
 
 			// Check if initialization is needed
 			// Only initialize if agent is not initialized OR agent ID has changed
