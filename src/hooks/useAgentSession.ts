@@ -334,6 +334,24 @@ export function useAgentSession(
 	// Error state
 	const [errorInfo, setErrorInfo] = useState<SessionErrorInfo | null>(null);
 
+	// Register error callback immediately (not in useEffect) to catch errors during initial createSession
+	useEffect(() => {
+		const handleError = (error: AgentError) => {
+			setSession((prev) => ({ ...prev, state: "error" }));
+			setErrorInfo({
+				title: error.title || "Agent Error",
+				message: error.message || "An error occurred",
+				suggestion: error.suggestion,
+				canAutoInstall: error.canAutoInstall,
+				agentId: error.agentId,
+			});
+		};
+		agentClient.onError(handleError);
+		return () => {
+			// Cleanup not needed as adapter manages single callback
+		};
+	}, [agentClient]);
+
 	// Derived state
 	const isReady = session.state === "ready";
 
@@ -851,20 +869,6 @@ export function useAgentSession(
 		},
 		[agentClient, session.sessionId, session.models?.currentModelId],
 	);
-
-	// Register error callback for process-level errors
-	useEffect(() => {
-		agentClient.onError((error) => {
-			setSession((prev) => ({ ...prev, state: "error" }));
-			setErrorInfo({
-				title: error.title || "Agent Error",
-				message: error.message || "An error occurred",
-				suggestion: error.suggestion,
-				canAutoInstall: error.canAutoInstall,
-				agentId: error.agentId,
-			});
-		});
-	}, [agentClient]);
 
 	/**
 	 * Update session state after loading/resuming/forking a session.
