@@ -388,7 +388,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			.setDesc("Folder where chat exports will be saved")
 			.addText((text) =>
 				text
-					.setPlaceholder("AI Tools")
+					.setPlaceholder("AI tools")
 					.setValue(this.plugin.settings.exportSettings.defaultFolder)
 					.onChange(async (value) => {
 						this.plugin.settings.exportSettings.defaultFolder =
@@ -465,7 +465,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					)
 					.addText((text) =>
 						text
-							.setPlaceholder("AI Tools")
+							.setPlaceholder("AI tools")
 							.setValue(
 								this.plugin.settings.exportSettings
 									.imageCustomFolder,

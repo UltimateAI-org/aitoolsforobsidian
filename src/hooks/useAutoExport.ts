@@ -150,7 +150,7 @@ export function useAutoExport(plugin: AgentClientPlugin): UseAutoExportReturn {
 				}
 			} catch {
 				// Show error notification
-				new Notice("[AI Tools] Failed to export chat");
+				new Notice("Failed to export chat");
 				// Error already logged in exportChat
 			}
 		},
