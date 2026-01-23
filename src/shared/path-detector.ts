@@ -34,8 +34,9 @@ export function detectWsl(): WslDetectionResult {
 		});
 
 		if (result.status === 0 && result.stdout) {
-			// Get the default distribution
-			const lines = result.stdout.trim().split(/\r?\n/);
+			// Get the default distribution - clean null bytes from output
+			const cleaned = result.stdout.replace(/\0/g, "");
+			const lines = cleaned.trim().split(/\r?\n/);
 			for (const line of lines) {
 				const trimmed = line.trim();
 				if (trimmed && trimmed.length > 0) {
