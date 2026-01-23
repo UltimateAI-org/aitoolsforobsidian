@@ -8,7 +8,7 @@ body:
       value: |
         Have a question? We're happy to help!
 
-        You may also want to check the [documentation](https://rait-09.github.io/obsidian-agent-client/) first.
+        You may also want to check the [documentation](https://ultimateai-org.github.io/aitoolsforobsidian/) first.
 
   - type: textarea
     id: question

@@ -4,8 +4,8 @@
 	"version": "0.6.1",
 	"minAppVersion": "0.15.0",
 	"description": "Chat with AI agents via the Agent Client Protocol directly from your vault.",
-	"author": "RAIT-09",
-	"authorUrl": "https://github.com/RAIT-09",
+	"author": "UltimateAI-org",
+	"authorUrl": "https://github.com/UltimateAI-org",
 	"fundingUrl": "https://www.buymeacoffee.com/rait09",
 	"isDesktopOnly": true
 }

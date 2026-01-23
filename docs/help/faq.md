@@ -152,12 +152,12 @@ The plugin itself is free and open source. However, using AI agents may incur co
 ### Where can I get help?
 
 1. Check the [Troubleshooting](/help/troubleshooting) page
-2. Search [GitHub Issues](https://github.com/RAIT-09/obsidian-agent-client/issues)
+2. Search [GitHub Issues](https://github.com/UltimateAI-org/aitoolsforobsidian/issues)
 3. Open a new issue if your problem isn't covered
 
 ### How do I report a bug?
 
-[Open an issue on GitHub](https://github.com/RAIT-09/obsidian-agent-client/issues/new) with:
+[Open an issue on GitHub](https://github.com/UltimateAI-org/aitoolsforobsidian/issues/new) with:
 - Your OS and Obsidian version
 - The agent you're using
 - Steps to reproduce

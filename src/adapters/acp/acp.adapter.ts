@@ -433,7 +433,7 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 					terminal: true,
 				},
 				clientInfo: {
-					name: "obsidian-agent-client",
+					name: "aitoolsforobsidian",
 					title: "Agent Client for Obsidian",
 					version: this.plugin.manifest.version,
 				},

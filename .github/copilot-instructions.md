@@ -1,4 +1,4 @@
-# GitHub Copilot Instructions (obsidian-agent-client)
+# GitHub Copilot Instructions (aitoolsforobsidian)
 
 ## Big picture
 - Obsidian **desktop** plugin (React 19 + TypeScript) that chats with external coding agents via **Agent Client Protocol (ACP)**.

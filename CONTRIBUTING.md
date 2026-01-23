@@ -51,7 +51,7 @@ cd /path/to/your/vault/.obsidian/plugins
 
 # Clone the repository as "agent-client"
 # The directory name must match the id in manifest.json
-git clone https://github.com/RAIT-09/obsidian-agent-client.git agent-client
+git clone https://github.com/UltimateAI-org/aitoolsforobsidian.git agent-client
 cd agent-client
 
 # Install dependencies

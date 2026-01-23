@@ -1,5 +1,5 @@
 {
-	"name": "obsidian-agent-client",
+	"name": "aitoolsforobsidian",
 	"version": "0.6.1",
 	"description": "Use AI coding agents via the Agent Client Protocol directly inside Obsidian",
 	"main": "main.js",

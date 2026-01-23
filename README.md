@@ -1,10 +1,10 @@
-<h1 align="center">🤖 Agent Client Plugin for Obsidian</h1>
+<h1 align="center">🤖 AI Tools for Obsidian</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/github/downloads/RAIT-09/obsidian-agent-client/total" alt="GitHub Downloads">
-  <img src="https://img.shields.io/github/license/RAIT-09/obsidian-agent-client" alt="License">
-  <img src="https://img.shields.io/github/v/release/RAIT-09/obsidian-agent-client" alt="GitHub release">
-  <img src="https://img.shields.io/github/last-commit/RAIT-09/obsidian-agent-client" alt="GitHub last commit">
+  <img src="https://img.shields.io/github/downloads/UltimateAI-org/aitoolsforobsidian/total" alt="GitHub Downloads">
+  <img src="https://img.shields.io/github/license/UltimateAI-org/aitoolsforobsidian" alt="License">
+  <img src="https://img.shields.io/github/v/release/UltimateAI-org/aitoolsforobsidian" alt="GitHub release">
+  <img src="https://img.shields.io/github/last-commit/UltimateAI-org/aitoolsforobsidian" alt="GitHub last commit">
 </p>
 
 <p align="center">
@@ -38,13 +38,13 @@ https://github.com/user-attachments/assets/1c538349-b3fb-44dd-a163-7331cbca7824
 2. In Obsidian settings, go to Community Plugins → BRAT → Add Beta Plugin.
 3. Paste this repo URL:
    ```
-   https://github.com/RAIT-09/obsidian-agent-client
+   https://github.com/UltimateAI-org/aitoolsforobsidian
    ```
 4. BRAT will download the latest release and keep it auto-updated.
 5. Enable Agent Client from the plugin list.
 
 ### 💻 Manual Installation
-1. Download the latest release files from [GitHub Releases](https://github.com/RAIT-09/obsidian-agent-client/releases):
+1. Download the latest release files from [GitHub Releases](https://github.com/UltimateAI-org/aitoolsforobsidian/releases):
    - `main.js`
    - `manifest.json`
    - `styles.css`
@@ -211,7 +211,7 @@ npm run format
 - **Chat History Access**: Browse, search, and restore previous chat sessions with agents
 - **Multi-Instance Support**: Run multiple agents simultaneously in separate panels
 
-Have ideas or feature requests? Feel free to [open an issue](https://github.com/RAIT-09/obsidian-agent-client/issues) on GitHub!
+Have ideas or feature requests? Feel free to [open an issue](https://github.com/UltimateAI-org/aitoolsforobsidian/issues) on GitHub!
 
 ## 📄 License
 
@@ -219,4 +219,4 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ## ⭐️ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=RAIT-09/obsidian-agent-client&type=Date)](https://www.star-history.com/#RAIT-09/obsidian-agent-client&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=UltimateAI-org/aitoolsforobsidian&type=Date)](https://www.star-history.com/#UltimateAI-org/aitoolsforobsidian&Date)

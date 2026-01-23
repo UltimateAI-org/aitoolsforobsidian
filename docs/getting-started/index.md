@@ -12,14 +12,14 @@ This plugin is awaiting approval for **Obsidian Community Plugins**. For now, us
 2. In Obsidian settings, go to **Community Plugins → BRAT → Add Beta Plugin**
 3. Paste this repo URL:
    ```
-   https://github.com/RAIT-09/obsidian-agent-client
+   https://github.com/UltimateAI-org/aitoolsforobsidian
    ```
 4. BRAT will download the latest release and keep it auto-updated
 5. Enable **Agent Client** from the plugin list
 
 ### Manual Installation
 
-1. Download the latest release files from [GitHub Releases](https://github.com/RAIT-09/obsidian-agent-client/releases):
+1. Download the latest release files from [GitHub Releases](https://github.com/UltimateAI-org/aitoolsforobsidian/releases):
    - `main.js`
    - `manifest.json`
    - `styles.css`

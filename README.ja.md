@@ -1,10 +1,10 @@
-<h1 align="center">🤖 Agent Client Plugin for Obsidian</h1>
+<h1 align="center">🤖 AI Tools for Obsidian</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/github/downloads/RAIT-09/obsidian-agent-client/total" alt="GitHub Downloads">
-  <img src="https://img.shields.io/github/license/RAIT-09/obsidian-agent-client" alt="License">
-  <img src="https://img.shields.io/github/v/release/RAIT-09/obsidian-agent-client" alt="GitHub release">
-  <img src="https://img.shields.io/github/last-commit/RAIT-09/obsidian-agent-client" alt="GitHub last commit">
+  <img src="https://img.shields.io/github/downloads/UltimateAI-org/aitoolsforobsidian/total" alt="GitHub Downloads">
+  <img src="https://img.shields.io/github/license/UltimateAI-org/aitoolsforobsidian" alt="License">
+  <img src="https://img.shields.io/github/v/release/UltimateAI-org/aitoolsforobsidian" alt="GitHub release">
+  <img src="https://img.shields.io/github/last-commit/UltimateAI-org/aitoolsforobsidian" alt="GitHub last commit">
 </p>
 
 <p align="center">
@@ -34,13 +34,13 @@ https://github.com/user-attachments/assets/1c538349-b3fb-44dd-a163-7331cbca7824
 2. Obsidianの設定で、コミュニティプラグイン → BRAT → Add Beta Plugin に移動します。
 3. このリポジトリのURLを貼り付けます:
    ```
-   https://github.com/RAIT-09/obsidian-agent-client
+   https://github.com/UltimateAI-org/aitoolsforobsidian
    ```
 4. BRATが最新リリースをダウンロードし、自動更新を行います。
 5. プラグインリストからAgent Clientを有効化します。
 
 ### 💻 手動でインストール
-1. [リリース](https://github.com/RAIT-09/obsidian-agent-client/releases)から最新リリースのファイルをダウンロードします:
+1. [リリース](https://github.com/UltimateAI-org/aitoolsforobsidian/releases)から最新リリースのファイルをダウンロードします:
    - `main.js`
    - `manifest.json`
    - `styles.css`
@@ -208,7 +208,7 @@ npm run format
 - **チャット履歴機能**: エージェントとの過去のチャットセッションを閲覧、検索、復元する
 - **マルチインスタンス対応**: 複数のエージェントを別々のパネルで同時に実行する
 
-アイデアや機能のリクエストがある場合は、ぜひお気軽に[issue](https://github.com/RAIT-09/obsidian-agent-client/issues)を開いてください！
+アイデアや機能のリクエストがある場合は、ぜひお気軽に[issue](https://github.com/UltimateAI-org/aitoolsforobsidian/issues)を開いてください！
 
 ## 📄 ライセンス
 
@@ -216,4 +216,4 @@ npm run format
 
 ## ⭐️ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=RAIT-09/obsidian-agent-client&type=Date)](https://www.star-history.com/#RAIT-09/obsidian-agent-client&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=UltimateAI-org/aitoolsforobsidian&type=Date)](https://www.star-history.com/#UltimateAI-org/aitoolsforobsidian&Date)
