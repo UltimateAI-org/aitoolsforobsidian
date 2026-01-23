@@ -70,10 +70,8 @@ jobs:
             changelog=$(git log --pretty=format:"- %s" | head -20)
           fi
 
-          # Create release
-          gh release create "$tag" \
-            --title="$tag" \
-            --notes "$(cat <<EOF
+          # Create release body
+          body=$(cat <<ENDRELEASE
 ## Changes
 
 $changelog
@@ -83,8 +81,13 @@ $changelog
 - main.js
 - manifest.json
 - styles.css
-EOF
-            )" \
+ENDRELEASE
+)
+
+          # Create release
+          gh release create "$tag" \
+            --title="$tag" \
+            --notes "$body" \
             main.js manifest.json styles.css
 
           echo "Release '$tag' created successfully"
