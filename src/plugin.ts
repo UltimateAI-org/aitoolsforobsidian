@@ -584,9 +584,18 @@ export default class AgentClientPlugin extends Plugin {
 					? rawSettings.autoInstallAgents
 					: DEFAULT_SETTINGS.autoInstallAgents,
 			// Global API configuration
-			apiKey: DEFAULT_SETTINGS.apiKey,
-			baseUrl: DEFAULT_SETTINGS.baseUrl,
-			model: DEFAULT_SETTINGS.model,
+			apiKey:
+				typeof rawSettings.apiKey === "string"
+					? rawSettings.apiKey
+					: DEFAULT_SETTINGS.apiKey,
+			baseUrl:
+				typeof rawSettings.baseUrl === "string"
+					? rawSettings.baseUrl
+					: DEFAULT_SETTINGS.baseUrl,
+			model:
+				typeof rawSettings.model === "string"
+					? rawSettings.model
+					: DEFAULT_SETTINGS.model,
 		};
 
 		this.ensureActiveAgentId();

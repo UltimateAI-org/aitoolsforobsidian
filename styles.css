@@ -394,6 +394,7 @@ If your plugin does not need CSS, delete this file.
 
 .obsidianaitools-chat-view-header-title {
 	margin: 0 !important;
+	color: #c97c59;
 }
 
 .obsidianaitools-chat-view-header-update {
