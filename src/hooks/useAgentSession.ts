@@ -124,7 +124,7 @@ async function autoInstallAgent(
 			stdio: ["pipe", "pipe", "pipe"],
 			env: {
 				...process.env,
-				...(nodeDir && !wslMode
+				...(nodeDir && !shouldUseWsl
 					? { PATH: `${nodeDir}:${process.env.PATH || ""}` }
 					: {}),
 			},
