@@ -1832,3 +1832,255 @@ If your plugin does not need CSS, delete this file.
 .obsidianaitools-onboarding-help a:hover {
 	text-decoration: underline;
 }
+
+/* Provider badge */
+.obsidianaitools-provider-badge {
+	display: inline-block;
+	padding: 4px 10px;
+	margin: 8px 0;
+	background-color: var(--background-modifier-border);
+	border-radius: 12px;
+	font-size: 12px;
+	color: var(--text-muted);
+	font-weight: 500;
+}
+
+/* Development note */
+.obsidianaitools-onboarding-dev-note {
+	margin-top: 16px;
+	padding: 12px;
+	background-color: var(--background-modifier-border);
+	border-radius: 6px;
+	color: var(--text-muted);
+	font-size: 13px;
+	text-align: center;
+}
+
+/* Instructions section */
+.obsidianaitools-onboarding-instructions {
+	margin: 20px 0;
+	padding: 16px;
+	background-color: var(--background-secondary);
+	border-radius: 8px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.obsidianaitools-onboarding-instructions-header {
+	margin: 0 0 12px 0 !important;
+	color: var(--text-normal);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.obsidianaitools-onboarding-instructions-list {
+	margin: 0 !important;
+	padding-left: 20px !important;
+}
+
+.obsidianaitools-onboarding-instructions-list li {
+	margin: 6px 0 !important;
+	color: var(--text-normal);
+	font-size: 14px;
+	line-height: 1.6;
+}
+
+/* Prerequisites section */
+.obsidianaitools-onboarding-prerequisites {
+	margin: 20px 0;
+	padding: 16px;
+	background-color: var(--background-primary-alt);
+	border-radius: 8px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.obsidianaitools-onboarding-prerequisites-header {
+	margin: 0 0 12px 0 !important;
+	color: var(--text-normal);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.obsidianaitools-onboarding-prerequisites-list {
+	margin: 0 !important;
+	padding-left: 20px !important;
+}
+
+.obsidianaitools-onboarding-prerequisites-list li {
+	margin: 8px 0 !important;
+	color: var(--text-normal);
+	font-size: 14px;
+	line-height: 1.6;
+}
+
+.obsidianaitools-onboarding-prerequisites-list a {
+	color: var(--text-accent);
+	text-decoration: none;
+}
+
+.obsidianaitools-onboarding-prerequisites-list a:hover {
+	text-decoration: underline;
+}
+
+/* WSL section */
+.obsidianaitools-onboarding-wsl-note {
+	margin: 16px 0;
+	padding: 12px 16px;
+	background-color: var(--background-secondary);
+	border-left: 3px solid var(--text-accent);
+	border-radius: 4px;
+}
+
+.obsidianaitools-onboarding-wsl-note p {
+	margin: 8px 0 !important;
+	color: var(--text-normal);
+	font-size: 14px;
+	line-height: 1.6;
+}
+
+.obsidianaitools-onboarding-wsl-command {
+	display: block;
+	margin: 8px 0;
+	padding: 8px 12px;
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	font-family: var(--font-monospace);
+	font-size: 13px;
+	color: var(--text-accent);
+}
+
+/* Terminal output container */
+.obsidianaitools-onboarding-terminal {
+	margin: 20px 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	overflow: hidden;
+	background-color: var(--background-primary);
+}
+
+/* Skip button */
+.obsidianaitools-onboarding-skip-button {
+	opacity: 0.8;
+}
+
+.obsidianaitools-onboarding-skip-button:hover {
+	opacity: 1;
+}
+
+/* Status section */
+.obsidianaitools-onboarding-status {
+	margin: 20px 0;
+	padding: 16px;
+	background-color: var(--background-secondary);
+	border-radius: 8px;
+}
+
+.obsidianaitools-onboarding-status p {
+	margin: 8px 0 !important;
+	color: var(--color-green);
+	font-size: 14px;
+	font-weight: 500;
+}
+
+/* Onboarding error messages */
+.obsidianaitools-onboarding-error {
+	margin: 20px 0;
+	padding: 20px;
+	border: 2px solid var(--color-red);
+	border-radius: 8px;
+	background-color: var(--background-primary-alt);
+}
+
+.obsidianaitools-onboarding-error-header {
+	margin: 0 0 16px 0 !important;
+	color: var(--color-red) !important;
+	font-size: 18px;
+	font-weight: 600;
+}
+
+.obsidianaitools-onboarding-error-message {
+	margin: 0 0 16px 0 !important;
+	color: var(--text-normal);
+	font-size: 14px;
+	line-height: 1.6;
+	white-space: pre-wrap;
+}
+
+.obsidianaitools-onboarding-error-action {
+	margin-top: 16px;
+	padding: 16px;
+	background-color: var(--background-secondary);
+	border-radius: 6px;
+}
+
+.obsidianaitools-onboarding-error-action-text {
+	margin: 0 0 12px 0 !important;
+	color: var(--text-normal);
+	font-size: 14px;
+	font-weight: 500;
+}
+
+.obsidianaitools-onboarding-error-action-header {
+	margin: 16px 0 8px 0 !important;
+	color: var(--text-normal);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.obsidianaitools-onboarding-error-steps {
+	margin: 8px 0 !important;
+	padding-left: 20px !important;
+}
+
+.obsidianaitools-onboarding-error-steps li {
+	margin: 8px 0 !important;
+	color: var(--text-normal);
+	font-size: 14px;
+	line-height: 1.6;
+}
+
+.obsidianaitools-onboarding-error-steps strong {
+	color: var(--text-accent);
+	font-weight: 600;
+}
+
+.obsidianaitools-onboarding-error-alternative {
+	margin: 16px 0 0 0 !important;
+	color: var(--text-muted);
+	font-size: 13px;
+	font-style: italic;
+}
+
+.obsidianaitools-onboarding-error-help {
+	margin-top: 16px;
+}
+
+.obsidianaitools-onboarding-error-help p {
+	margin: 0 0 8px 0 !important;
+	color: var(--text-normal);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.obsidianaitools-onboarding-error-help ul {
+	margin: 8px 0 !important;
+	padding-left: 20px !important;
+}
+
+.obsidianaitools-onboarding-error-help li {
+	margin: 6px 0 !important;
+	color: var(--text-normal);
+	font-size: 14px;
+	line-height: 1.6;
+}
+
+.obsidianaitools-onboarding-error-command {
+	display: inline-block;
+	padding: 2px 6px;
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	font-family: var(--font-monospace);
+	font-size: 13px;
+	color: var(--text-accent);
+}

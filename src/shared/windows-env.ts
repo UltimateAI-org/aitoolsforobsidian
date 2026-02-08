@@ -26,13 +26,16 @@ export function getFullWindowsPath(): string | null {
 
 	try {
 		// Get system PATH from registry
+		const systemRoot = process.env.SystemRoot || "C:\\Windows";
+		const regExe = `${systemRoot}\\System32\\reg.exe`;
+
 		const systemPath = execSync(
-			'reg query "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment" /v Path',
+			`"${regExe}" query "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment" /v Path`,
 			{ encoding: "utf8", windowsHide: true },
 		);
 
 		// Get user PATH from registry
-		const userPath = execSync('reg query "HKCU\\Environment" /v Path', {
+		const userPath = execSync(`"${regExe}" query "HKCU\\Environment" /v Path`, {
 			encoding: "utf8",
 			windowsHide: true,
 		});

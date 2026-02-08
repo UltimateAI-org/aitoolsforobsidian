@@ -1,9 +1,10 @@
 import { Modal, App, ButtonComponent, Setting } from "obsidian";
 import type AgentClientPlugin from "../plugin";
 import { getAgentInstallCommand } from "../shared/agent-installer";
-import { detectWsl, detectNodePath } from "../shared/path-detector";
+import { detectWsl, detectNodePath, detectAgentPath } from "../shared/path-detector";
 import { spawn } from "child_process";
 import { Platform } from "obsidian";
+import { getEnhancedWindowsEnv } from "../shared/windows-env";
 
 interface AgentOption {
 	id: string;
@@ -30,7 +31,10 @@ export class OnboardingModal extends Modal {
 	// Form state
 	private selectedAgent: AgentOption | null = null;
 	private apiKey = "";
-	private baseUrl = "https://chat.ultimateai.org";
+	private baseUrl = "https://chat.obsidianaitools.com";
+	private installErrorMessage = "";
+	private detectedNodePath = ""; // Store detected Node.js path for settings
+	private terminalOutputEl: HTMLElement | null = null; // Terminal output element for live updates
 
 	private readonly agents: AgentOption[] = [
 		{
@@ -40,19 +44,20 @@ export class OnboardingModal extends Modal {
 			package: "@zed-industries/claude-code-acp",
 			description: "Popular for general coding tasks",
 		},
+		{
+			id: "gemini-cli",
+			name: "Gemini CLI",
+			provider: "Google",
+			package: "@google/gemini-cli",
+			description: "Fast and versatile AI assistant",
+		},
+		// Note: Codex/OpenCode is currently in development
 		// {
 		// 	id: "codex-acp",
 		// 	name: "Codex",
 		// 	provider: "OpenAI",
 		// 	package: "@zed-industries/codex-acp",
 		// 	description: "Code generation focused",
-		// },
-		// {
-		// 	id: "gemini-cli",
-		// 	name: "Gemini CLI",
-		// 	provider: "Google",
-		// 	package: "@google/gemini-cli",
-		// 	description: "Experimental ACP support",
 		// },
 	];
 
@@ -126,25 +131,52 @@ export class OnboardingModal extends Modal {
 
 		// Save API key and base URL
 		settings.apiKey = this.apiKey.trim();
-		settings.baseUrl = this.baseUrl.trim() || "https://chat.ultimateai.org";
+		// Normalize URL: trim and remove trailing slash
+		const normalizedUrl = this.baseUrl.trim().replace(/\/$/, "");
+		settings.baseUrl = normalizedUrl || "https://chat.obsidianaitools.com";
 		settings.autoInstallAgents = true;
 
-		// Configure selected agent command (after npm install, should be in PATH)
+		// Save detected Node.js path so user doesn't have to configure it manually
+		if (this.detectedNodePath) {
+			settings.nodePath = this.detectedNodePath;
+		}
+
+		// Configure selected agent - auto-detect the full path after installation
 		if (this.selectedAgent) {
 			settings.activeAgentId = this.selectedAgent.id;
-			if (this.selectedAgent.id === "claude-code-acp") {
-				settings.claude.command = "claude-code-acp";
-			} else if (this.selectedAgent.id === "codex-acp") {
-				settings.codex.command = "codex-acp";
-			} else if (this.selectedAgent.id === "gemini-cli") {
-				settings.gemini.command = "gemini";
+
+			// Auto-detect the installed agent's full path with retry logic
+			// On Windows, there can be a delay after npm install before the .cmd file is accessible
+			let detectedPath = detectAgentPath(this.selectedAgent.id);
+			let retries = 0;
+			const maxRetries = 3;
+
+			while (!detectedPath.path && retries < maxRetries) {
+				console.warn(`[Onboarding] Path detection attempt ${retries + 1} failed, retrying in 1s...`);
+				await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+				detectedPath = detectAgentPath(this.selectedAgent.id);
+				retries++;
 			}
+
+			const agentPath = detectedPath.path || this.selectedAgent.id; // Fallback to command name if not found
+
+			if (this.selectedAgent.id === "claude-code-acp") {
+				settings.claude.command = agentPath;
+			} else if (this.selectedAgent.id === "codex-acp") {
+				settings.codex.command = agentPath;
+			} else if (this.selectedAgent.id === "gemini-cli") {
+				settings.gemini.command = agentPath;
+			}
+
+			console.warn(`[Onboarding] Detected agent path: ${agentPath} (wasAutoDetected: ${detectedPath.wasAutoDetected})`);
 		}
 
 		// Mark onboarding as complete
 		settings.hasCompletedOnboarding = true;
 
-		await this.plugin.saveSettings();
+		// Use saveSettingsAndNotify so the settings store notifies all subscribers
+		// (ChatView, useAgentSession, etc.) about the new configuration
+		await this.plugin.saveSettingsAndNotify(settings);
 	}
 
 	private renderCurrentStep() {
@@ -183,6 +215,12 @@ export class OnboardingModal extends Modal {
 			this.createAgentCard(cardsContainer, agent);
 		}
 
+		// Add development note
+		this.stepContainer.createEl("p", {
+			text: "Note: Codex/OpenCode is currently in development",
+			cls: "obsidianaitools-onboarding-dev-note",
+		});
+
 		this.addNavigation("Get Started", undefined, true, false, !this.selectedAgent);
 	}
 
@@ -194,7 +232,8 @@ export class OnboardingModal extends Modal {
 		});
 		card.onclick = () => {
 			this.selectedAgent = agent;
-			this.renderCurrentStep(); // Use renderCurrentStep to properly empty container
+			this.currentStep++;
+			this.renderCurrentStep(); // Advance to next step automatically
 		};
 
 		card.createEl("h4", { text: agent.name });
@@ -210,12 +249,12 @@ export class OnboardingModal extends Modal {
 		this.stepContainer.createEl("h3", { text: "API key" });
 
 		this.stepContainer.createEl("p", {
-			text: `Enter your API key for ${this.selectedAgent?.provider}:`,
+			text: "Enter your API key from chat.obsidianaitools.com:",
 		});
 
 		// API key input
 		new Setting(this.stepContainer)
-			.setName(`${this.selectedAgent?.provider} API key`)
+			.setName("API key")
 			.setDesc("Your API key is stored securely in Obsidian settings")
 			.addText((text) => {
 				text.setPlaceholder("Enter your API key")
@@ -226,6 +265,24 @@ export class OnboardingModal extends Modal {
 				text.inputEl.type = "password";
 			});
 
+		// Instructions container
+		const instructionsDiv = this.stepContainer.createDiv({
+			cls: "obsidianaitools-onboarding-instructions",
+		});
+
+		instructionsDiv.createEl("p", {
+			text: "To get your API key:",
+			cls: "obsidianaitools-onboarding-instructions-header",
+		});
+
+		const instructionsList = instructionsDiv.createEl("ol", {
+			cls: "obsidianaitools-onboarding-instructions-list",
+		});
+
+		instructionsList.createEl("li", { text: "Go to chat.obsidianaitools.com" });
+		instructionsList.createEl("li", { text: "Navigate to Settings > Account" });
+		instructionsList.createEl("li", { text: "Copy your API key" });
+
 		this.stepContainer.createEl("p", {
 			text: "Tip: The API key is used by all agents via ANTHROPIC_AUTH_TOKEN, GEMINI_API_KEY, or OPENAI_API_KEY",
 			cls: "obsidianaitools-onboarding-tip",
@@ -235,31 +292,368 @@ export class OnboardingModal extends Modal {
 	}
 
 	private renderStep3() {
-		// Base URL
-		this.stepContainer.createEl("h3", { text: "API endpoint" });
+		// Auto-detect and save Node.js path early
+		if (!this.detectedNodePath) {
+			const detected = detectNodePath();
+			if (detected?.path) {
+				this.detectedNodePath = detected.path;
+				console.warn(`[Onboarding] Auto-detected Node.js at: ${this.detectedNodePath}`);
+				// Save to settings immediately so it persists even if user skips installation
+				this.plugin.settings.nodePath = this.detectedNodePath;
+				void this.plugin.saveSettings();
+			}
+		}
 
-		this.stepContainer.createEl("p", {
-			text: "Enter the base URL for API requests:",
+		// Prerequisites note
+		const prereqDiv = this.stepContainer.createDiv({
+			cls: "obsidianaitools-onboarding-prerequisites",
 		});
 
-		// Base URL input
-		new Setting(this.stepContainer)
-			.setName("Base URL")
-			.setDesc("The API endpoint for all agents")
-			.addText((text) => {
-				text.setPlaceholder("https://chat.ultimateai.org")
-					.setValue(this.baseUrl)
-					.onChange((value) => {
-						this.baseUrl = value;
-					});
+		prereqDiv.createEl("p", {
+			text: "Before installing, ensure you have:",
+			cls: "obsidianaitools-onboarding-prerequisites-header",
+		});
+
+		const prereqList = prereqDiv.createEl("ul", {
+			cls: "obsidianaitools-onboarding-prerequisites-list",
+		});
+
+		const nodePrereq = prereqList.createEl("li");
+		nodePrereq.setText("Node.js and npm installed (");
+		const nodeLink = nodePrereq.createEl("a", {
+			text: "https://nodejs.org/en/download",
+			href: "https://nodejs.org/en/download",
+		});
+		nodeLink.setAttribute("target", "_blank");
+		nodePrereq.appendText(")");
+
+		if (Platform.isWin) {
+			prereqList.createEl("li", { text: "WSL installed (run: wsl --install)" });
+			const pathNote = prereqList.createEl("li");
+			pathNote.setText("After installing Node.js, ");
+			pathNote.createEl("strong").setText("restart your computer");
+			pathNote.appendText(" to ensure npm is in your system PATH");
+		}
+
+		// WSL note for Windows users
+		if (Platform.isWin) {
+			const wslDiv = this.stepContainer.createDiv({
+				cls: "obsidianaitools-onboarding-wsl-note",
 			});
 
-		this.stepContainer.createEl("p", {
-			text: `Default: ${this.baseUrl}`,
-			cls: "obsidianaitools-onboarding-tip",
+			wslDiv.createEl("p", {
+				text: "Windows users: WSL (Windows Subsystem for Linux) is recommended",
+			});
+
+			wslDiv.createEl("p", {
+				text: "To install WSL, open Command Prompt and run: wsl --install",
+				cls: "obsidianaitools-onboarding-wsl-command",
+			});
+
+			// Add PATH troubleshooting note
+			const pathDiv = this.stepContainer.createDiv({
+				cls: "obsidianaitools-onboarding-wsl-note",
+			});
+
+			const pathHeader = pathDiv.createEl("p");
+			pathHeader.createEl("strong").setText("Troubleshooting: ");
+			pathHeader.appendText("If installation fails after restarting");
+
+			const pathInstructions = pathDiv.createEl("p", {
+				cls: "obsidianaitools-onboarding-wsl-command",
+			});
+			pathInstructions.setText("Verify this path is in your system PATH (Environment Variables):");
+
+			const pathList = pathDiv.createEl("ul", {
+				cls: "obsidianaitools-onboarding-prerequisites-list",
+			});
+			pathList.createEl("li").createEl("code").setText("C:\\Users\\%username%\\AppData\\Roaming\\npm");
+		}
+
+		// Display installation error if present
+		if (this.installErrorMessage) {
+			const errorDiv = this.stepContainer.createDiv({
+				cls: "obsidianaitools-onboarding-error",
+			});
+
+			errorDiv.createEl("p", {
+				text: "Installation Failed",
+				cls: "obsidianaitools-onboarding-error-header",
+			});
+
+			// Check if it's a missing npm error
+			const isNpmMissing = this.installErrorMessage.toLowerCase().includes("node.js and npm");
+
+			if (isNpmMissing) {
+				// Show prominent installation instructions for missing npm
+				const actionDiv = errorDiv.createDiv({
+					cls: "obsidianaitools-onboarding-error-action",
+				});
+
+				actionDiv.createEl("p", {
+					text: "Node.js is required but not installed on your system.",
+					cls: "obsidianaitools-onboarding-error-action-text",
+				});
+
+				actionDiv.createEl("p", {
+					text: "What to do next:",
+					cls: "obsidianaitools-onboarding-error-action-header",
+				});
+
+				const stepsList = actionDiv.createEl("ol", {
+					cls: "obsidianaitools-onboarding-error-steps",
+				});
+
+				const step1 = stepsList.createEl("li");
+				step1.createEl("strong").setText("Download Node.js: ");
+				const link = step1.createEl("a", {
+					text: "https://nodejs.org/en/download",
+					href: "https://nodejs.org/en/download",
+				});
+				link.setAttribute("target", "_blank");
+
+				stepsList.createEl("li", { text: "Install Node.js (it includes npm automatically)" });
+
+				const restartLi = stepsList.createEl("li");
+				restartLi.createEl("strong").setText("Restart your computer");
+				restartLi.appendText(" (required for npm to be added to PATH)");
+
+				stepsList.createEl("li", { text: "Restart Obsidian and come back here to click 'Retry Installation'" });
+
+				actionDiv.createEl("p", {
+					text: "OR click 'Skip & Setup Manually' below to configure later in settings.",
+					cls: "obsidianaitools-onboarding-error-alternative",
+				});
+			} else {
+				// Show generic error with help
+				// Check if it's a Node.js missing error with URL
+				const isNodeMissing = this.installErrorMessage.includes("https://nodejs.org/en/download");
+
+				if (isNodeMissing) {
+					// Split message to make URL clickable
+					const parts = this.installErrorMessage.split("https://nodejs.org/en/download");
+					const messagePara = errorDiv.createEl("p", {
+						cls: "obsidianaitools-onboarding-error-message",
+					});
+					messagePara.appendText(parts[0]);
+					const link = messagePara.createEl("a", {
+						text: "https://nodejs.org/en/download",
+						href: "https://nodejs.org/en/download",
+					});
+					link.setAttribute("target", "_blank");
+					if (parts[1]) {
+						messagePara.appendText(parts[1]);
+					}
+				} else {
+					// Show plain text for other errors
+					errorDiv.createEl("p", {
+						text: this.installErrorMessage,
+						cls: "obsidianaitools-onboarding-error-message",
+					});
+				}
+
+				// Add help section
+				const helpDiv = errorDiv.createDiv({
+					cls: "obsidianaitools-onboarding-error-help",
+				});
+
+				helpDiv.createEl("p", {
+					text: "What you can do:",
+				});
+
+				const helpList = helpDiv.createEl("ul");
+				helpList.createEl("li", { text: "Click 'Skip & Setup Manually' to configure paths in settings later" });
+				helpList.createEl("li", { text: "Check the error message above and resolve the issue, then retry" });
+
+				// Only show manual install command if we have a selected agent
+				if (this.selectedAgent) {
+					const packageName = this.selectedAgent.package;
+					const manualInstallLi = helpList.createEl("li");
+					manualInstallLi.setText("Or install manually from command line: ");
+					manualInstallLi.createEl("code", {
+						text: `npm install -g ${packageName}`,
+						cls: "obsidianaitools-onboarding-error-command",
+					});
+				}
+			}
+		}
+
+		// Terminal output container (initially hidden)
+		const terminalContainer = this.stepContainer.createDiv({
+			cls: "obsidianaitools-onboarding-terminal",
+		});
+		terminalContainer.style.display = "none";
+
+		const terminalHeader = terminalContainer.createDiv({
+			cls: "obsidianaitools-terminal-renderer-header",
+		});
+		terminalHeader.setText("Installation Progress");
+
+		this.terminalOutputEl = terminalContainer.createDiv({
+			cls: "obsidianaitools-terminal-renderer-output",
 		});
 
-		this.addNavigation("Install & Connect →", "Back", true, true);
+		// Add navigation with skip option
+		const navContainer = this.stepContainer.createDiv({
+			cls: "obsidianaitools-onboarding-nav",
+		});
+
+		// Back button
+		const backBtn = new ButtonComponent(navContainer)
+			.setButtonText("Back")
+			.onClick(() => {
+				this.currentStep--;
+				this.renderCurrentStep();
+			});
+
+		// Skip button
+		const skipBtn = new ButtonComponent(navContainer)
+			.setButtonText("Skip & Setup Manually")
+			.setTooltip("Skip automatic installation and configure manually in settings")
+			.onClick(() => {
+				// Save settings without installation
+				void this.saveSettings().then(() => {
+					this.close();
+				});
+			});
+		skipBtn.buttonEl.addClass("obsidianaitools-onboarding-skip-button");
+
+		// Install button
+		const installBtn = new ButtonComponent(navContainer)
+			.setButtonText("Install & Connect →")
+			.setCta()
+			.onClick(async () => {
+				// Clear any previous error messages
+				this.stepContainer.querySelectorAll(".obsidianaitools-onboarding-error").forEach((el) => el.remove());
+				this.installErrorMessage = "";
+
+				// Show terminal and disable navigation
+				terminalContainer.style.display = "block";
+				this.terminalOutputEl!.setText("");
+
+				// Show time estimate for agents with many dependencies
+				const timeEstimate = this.selectedAgent!.id === "gemini-cli"
+					? "Installing... (this may take 2-5 minutes)"
+					: "Installing...";
+				installBtn.setButtonText(timeEstimate);
+				installBtn.setDisabled(true);
+				backBtn.setDisabled(true);
+				skipBtn.setDisabled(true);
+
+				// Show initial command being run
+				const packageName = this.selectedAgent!.package;
+				const estimateMessage = this.selectedAgent!.id === "gemini-cli"
+					? "\nℹ️  Gemini CLI has 600+ dependencies and may take 2-5 minutes to install.\nPlease be patient, the installation is in progress...\n\n"
+					: "";
+				const initialText = `$ npm install -g ${packageName}\n${estimateMessage}`;
+				this.terminalOutputEl!.appendText(initialText);
+
+				const result = await this.installAgent(
+					this.selectedAgent!,
+					(output: string) => {
+						// Append output to terminal
+						if (this.terminalOutputEl) {
+							this.terminalOutputEl.appendText(output);
+							// Auto-scroll to bottom
+							this.terminalOutputEl.scrollTop = this.terminalOutputEl.scrollHeight;
+						}
+					},
+				);
+
+				if (result.success) {
+					// Show success message
+					this.terminalOutputEl!.appendText("\n\n✓ Installation completed successfully!\n");
+
+					// Save settings
+					this.installErrorMessage = "";
+					void this.saveSettings();
+
+					// Change install button to "Continue" and enable it
+					installBtn.setButtonText("Continue →");
+					installBtn.setDisabled(false);
+					installBtn.setCta();
+
+					// Set up auto-advance after 5 seconds
+					const autoAdvanceTimer = setTimeout(() => {
+						this.currentStep++;
+						this.renderCurrentStep();
+					}, 5000);
+
+					// Allow user to continue immediately by clicking button
+					installBtn.onClick(() => {
+						clearTimeout(autoAdvanceTimer);
+						this.currentStep++;
+						this.renderCurrentStep();
+					});
+				} else {
+					// Show error message above terminal without re-rendering (preserves terminal output)
+					this.installErrorMessage = result.error || "Installation failed. Please try again.";
+
+					// Create error message container above terminal
+					const errorDiv = this.stepContainer.createDiv({
+						cls: "obsidianaitools-onboarding-error",
+					});
+					errorDiv.style.order = String(Number(terminalContainer.style.order || "0") - 1);
+
+					errorDiv.createEl("p", {
+						text: "⚠️ Installation Failed",
+						cls: "obsidianaitools-onboarding-error-header",
+					});
+
+				// Check if it's a Node.js missing error with URL
+				const isNodeMissing = this.installErrorMessage.includes("https://nodejs.org/en/download");
+
+				if (isNodeMissing) {
+					// Split message to make URL clickable
+					const parts = this.installErrorMessage.split("https://nodejs.org/en/download");
+					const messagePara = errorDiv.createEl("p", {
+						cls: "obsidianaitools-onboarding-error-message",
+					});
+					messagePara.appendText(parts[0]);
+					const link = messagePara.createEl("a", {
+						text: "https://nodejs.org/en/download",
+						href: "https://nodejs.org/en/download",
+					});
+					link.setAttribute("target", "_blank");
+					if (parts[1]) {
+						messagePara.appendText(parts[1]);
+					}
+				} else {
+					// Show plain text for other errors
+					errorDiv.createEl("p", {
+						text: this.installErrorMessage,
+						cls: "obsidianaitools-onboarding-error-message",
+					});
+				}
+
+					const helpDiv = errorDiv.createDiv({
+						cls: "obsidianaitools-onboarding-error-help",
+					});
+					helpDiv.createEl("p", { text: "What you can do:" });
+					const helpList = helpDiv.createEl("ul");
+					helpList.createEl("li", { text: "Click 'Retry Installation' to try again" });
+					helpList.createEl("li", { text: "Check the terminal output below for details" });
+					helpList.createEl("li", { text: "Click 'Skip & Setup Manually' to configure paths in settings later" });
+
+					if (this.selectedAgent) {
+						const manualLi = helpList.createEl("li");
+						manualLi.setText("Or install manually: ");
+						manualLi.createEl("code", {
+							text: `npm install -g ${this.selectedAgent.package}`,
+							cls: "obsidianaitools-onboarding-error-command",
+						});
+					}
+
+					// Insert error div before terminal
+					terminalContainer.parentElement?.insertBefore(errorDiv, terminalContainer);
+
+					// Update button states
+					installBtn.setButtonText("Retry Installation");
+					installBtn.setDisabled(false);
+					backBtn.setDisabled(false);
+					skipBtn.setDisabled(false);
+				}
+			});
 	}
 
 	private renderStep4() {
@@ -315,18 +709,22 @@ export class OnboardingModal extends Modal {
 					btn.setButtonText("Installing...");
 					btn.setDisabled(true);
 
-					const installed = await this.installAgent(
+					const result = await this.installAgent(
 						this.selectedAgent,
 					);
 
-					if (installed) {
+					if (result.success) {
 						// Save settings and proceed
+						this.installErrorMessage = "";
 						void this.saveSettings();
 						this.currentStep++;
 						this.renderCurrentStep();
 					} else {
+						// Store error message and re-render to show it
+						this.installErrorMessage = result.error || "Installation failed. Please try again.";
 						btn.setButtonText("Installation failed - retry");
 						btn.setDisabled(false);
+						this.renderCurrentStep();
 					}
 				} else {
 					this.nextStep();
@@ -337,11 +735,20 @@ export class OnboardingModal extends Modal {
 		}
 	}
 
-	private async installAgent(agent: AgentOption): Promise<boolean> {
+	private async installAgent(agent: AgentOption, onOutput?: (text: string) => void): Promise<{ success: boolean; error?: string }> {
 		const installCommand = getAgentInstallCommand(agent.id);
 		if (!installCommand) {
-			console.error(`[Onboarding] No install command for agent: ${agent.id}`);
-			return false;
+			const error = `No install command found for agent: ${agent.name}`;
+			console.error(`[Onboarding] ${error}`);
+			return { success: false, error };
+		}
+
+		// Check if agent is already installed
+		const alreadyInstalled = detectAgentPath(agent.id);
+		if (alreadyInstalled.path) {
+			console.warn(`[Onboarding] ${agent.name} is already installed at: ${alreadyInstalled.path}`);
+			onOutput?.(`✓ ${agent.name} is already installed at: ${alreadyInstalled.path}\n\nSkipping installation...\n`);
+			return { success: true };
 		}
 
 		const packageName = installCommand.replace("npm install -g ", "");
@@ -370,83 +777,143 @@ export class OnboardingModal extends Modal {
 			}
 		}
 
+		// Store the detected/configured Node.js path for saving to settings
+		if (nodePath.trim()) {
+			this.detectedNodePath = nodePath.trim();
+		}
+
 		const nodeDir = !shouldUseWsl && nodePath.trim()
-			? nodePath.trim().replace(/\/node$/, "")
+			? nodePath.trim().replace(/\/node$/, "").replace(/\\node\.exe$/, "")
 			: "";
 		const npmExec = nodeDir ? `${nodeDir}/npm` : "npm";
 
 		return new Promise((resolve) => {
 			let command: string;
 			let args: string[];
-			const installArgs = `${npmExec} install -g ${packageName}`;
 
 			if (shouldUseWsl && wslDistribution) {
 				// Use WSL
+				const installArgs = `${npmExec} install -g ${packageName}`;
 				command = "wsl";
 				args = ["--distribution", wslDistribution, "-e", "bash", "-l", "-c", installArgs];
 				console.warn(`[Onboarding] Installing ${agent.name} (${packageName}) via WSL...`);
 			} else if (Platform.isWin) {
-				command = "cmd.exe";
-				args = ["/c", installArgs];
+				// Windows: spawn npm directly with shell: true (added below) to handle paths with spaces
+				// Quote the path if it contains spaces
+				const npmCmd = nodeDir ? `"${nodeDir}\\npm.cmd"` : "npm";
+				command = npmCmd;
+				args = ["install", "-g", packageName];
 				console.warn(`[Onboarding] Installing ${agent.name} (${packageName}) via Windows...`);
 			} else {
+				// macOS/Linux
+				const installArgs = `${npmExec} install -g ${packageName}`;
 				command = "/bin/bash";
 				args = ["-l", "-c", installArgs];
 				console.warn(`[Onboarding] Installing ${agent.name} (${packageName}) via bash...`);
 			}
 
+			// Enhance environment on Windows to include full system PATH
+			let env = { ...process.env };
+			if (Platform.isWin && !shouldUseWsl) {
+				env = getEnhancedWindowsEnv(env);
+			}
+
+			// Add nodeDir to PATH if specified
+			if (nodeDir && !shouldUseWsl) {
+				const separator = Platform.isWin ? ";" : ":";
+				env.PATH = `${nodeDir}${separator}${env.PATH || ""}`;
+			}
+
 			const child = spawn(command, args, {
 				stdio: ["pipe", "pipe", "pipe"],
-				env: {
-					...process.env,
-					...(nodeDir && !shouldUseWsl && !Platform.isWin
-						? { PATH: `${nodeDir}:${process.env.PATH || ""}` }
-						: {}),
-				},
+				// Use shell on Windows to properly handle paths with spaces
+				shell: Platform.isWin && !shouldUseWsl,
+				env,
 			});
 
 			let output = "";
 			let hasTimeout = false;
 
-			// Timeout after 2 minutes
+			// Show progress indicators during installation
+			let progressInterval: NodeJS.Timeout | null = null;
+			let elapsed = 0;
+			const progressIntervalMs = agent.id === "gemini-cli" ? 15000 : 10000; // 15s for Gemini, 10s for others
+
+			progressInterval = setInterval(() => {
+				elapsed += progressIntervalMs / 1000;
+				onOutput?.(`\n⏳ Still installing... (${elapsed}s elapsed)\n`);
+			}, progressIntervalMs);
+
+			// Timeout after 5 minutes (Gemini CLI) or 3 minutes (others)
+			const timeoutDuration = agent.id === "gemini-cli" ? 300000 : 180000;
 			const timeout = setTimeout(() => {
 				hasTimeout = true;
-				console.error(`[Onboarding] Installation timed out after 2 minutes`);
+				if (progressInterval) clearInterval(progressInterval);
+				const error = `Installation timed out after ${timeoutDuration / 60000} minutes`;
+				console.error(`[Onboarding] ${error}`);
 				child.kill("SIGTERM");
-				resolve(false);
-			}, 120000);
+				resolve({ success: false, error });
+			}, timeoutDuration);
 
 			child.stdout?.on("data", (data: unknown) => {
 				const text = typeof data === "string" ? data : String(data);
 				output += text;
 				console.warn(`[Onboarding] npm stdout: ${text.substring(0, 200)}`);
+				onOutput?.(text);
 			});
 			child.stderr?.on("data", (data: unknown) => {
 				const text = typeof data === "string" ? data : String(data);
 				output += text;
 				console.warn(`[Onboarding] npm stderr: ${text.substring(0, 200)}`);
+				onOutput?.(text);
 			});
 
 			child.on("close", (code: number) => {
 				clearTimeout(timeout);
+				if (progressInterval) clearInterval(progressInterval);
 				if (hasTimeout) return;
 
-				if (code === 0) {
-					console.warn(`[Onboarding] Successfully installed ${agent.name}`);
-					resolve(true);
+				// Check if agent was actually installed, regardless of exit code
+				// npm can return non-zero exit codes even on successful installs if there are warnings
+				const installed = detectAgentPath(agent.id);
+				const wasInstalled = installed.path !== null;
+
+				if (code === 0 || wasInstalled) {
+					if (wasInstalled) {
+						console.warn(`[Onboarding] Successfully installed ${agent.name} at: ${installed.path}`);
+					} else {
+						console.warn(`[Onboarding] npm completed with exit code 0`);
+					}
+					resolve({ success: true });
 				} else {
+					// Check for common errors and provide helpful messages
+					let errorMsg = "";
+					const outputLower = output.toLowerCase();
+
+					if (outputLower.includes("npm") && (outputLower.includes("not recognized") || outputLower.includes("command not found") || outputLower.includes("not found"))) {
+						errorMsg = "Node.js and npm are not installed or not in your system PATH.\n\nPlease install Node.js from: https://nodejs.org/en/download\n\nAfter installing, restart Obsidian and try again.";
+					} else if (outputLower.includes("eacces") || outputLower.includes("permission denied")) {
+						errorMsg = "Permission denied. Try running Obsidian as administrator, or install the agent manually:\n\nnpm install -g " + packageName;
+					} else if (outputLower.includes("enotfound") || outputLower.includes("network")) {
+						errorMsg = "Network error. Please check your internet connection and try again.";
+					} else {
+						errorMsg = `Installation failed with exit code ${code}.\n\n${output ? output.substring(0, 300) : "No error details available."}`;
+					}
+
 					console.error(
 						`[Onboarding] Failed to install ${agent.name} (exit code: ${code}): ${output}`,
 					);
-					resolve(false);
+					resolve({ success: false, error: errorMsg });
 				}
 			});
 
 			child.on("error", (error) => {
 				clearTimeout(timeout);
+				if (progressInterval) clearInterval(progressInterval);
 				if (hasTimeout) return;
+				const errorMsg = `Installation error: ${error.message}`;
 				console.error(`[Onboarding] Error installing ${agent.name}:`, error);
-				resolve(false);
+				resolve({ success: false, error: errorMsg });
 			});
 		});
 	}

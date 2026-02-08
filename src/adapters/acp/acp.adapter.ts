@@ -333,11 +333,12 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 			Platform.isWin && !this.plugin.settings.windowsWslMode;
 
 		// Spawn the agent process
+		// On Windows, explicitly specify cmd.exe path to avoid ENOENT errors when PATH is broken
 		const agentProcess = spawn(spawnCommand, spawnArgs, {
 			stdio: ["pipe", "pipe", "pipe"],
 			env: baseEnv,
 			cwd: config.workingDirectory,
-			shell: needsShell,
+			shell: needsShell ? (process.env.ComSpec || "C:\\Windows\\System32\\cmd.exe") : false,
 		});
 		this.agentProcess = agentProcess;
 
@@ -463,7 +464,8 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 		try {
 			this.logger.log("[AcpAdapter] Starting ACP initialization...");
 
-			const initResult = await this.connection.initialize({
+			// Add timeout to prevent hanging forever
+			const initPromise = this.connection.initialize({
 				protocolVersion: acp.PROTOCOL_VERSION,
 				clientCapabilities: {
 					fs: {
@@ -478,6 +480,14 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 					version: this.plugin.manifest.version,
 				},
 			});
+
+			const timeoutPromise = new Promise<never>((_, reject) => {
+				setTimeout(() => {
+					reject(new Error(`Agent initialization timed out after 30 seconds. The agent process spawned successfully (PID: ${agentProcess.pid}) but did not respond to the initialize request. This could indicate: 1) Missing or invalid API key/environment variables, 2) Agent waiting for authentication, 3) Network connectivity issues. Check the console logs for more details. Node version: ${process.version}, npm version: ${process.env.npm_config_user_agent || 'unknown'}`));
+				}, 30000);
+			});
+
+			const initResult = await Promise.race([initPromise, timeoutPromise]);
 
 			this.logger.log(
 				`[AcpAdapter] ✅ Connected to agent (protocol v${initResult.protocolVersion})`,

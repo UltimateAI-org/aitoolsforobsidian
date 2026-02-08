@@ -19,6 +19,7 @@ import {
 	getAgentInstallCommand,
 } from "../shared/agent-installer";
 import { detectNodePath, detectWsl } from "../shared/path-detector";
+import { mapToApiUrl } from "../shared/url-mapper";
 import { spawn } from "child_process";
 
 // ============================================================================
@@ -399,14 +400,16 @@ function buildAgentConfigWithApiKey(
 		if (agentId === settings.claude.id) {
 			env.ANTHROPIC_AUTH_TOKEN = settings.apiKey;
 			if (settings.baseUrl) {
-				env.ANTHROPIC_BASE_URL = settings.baseUrl;
+				// Map display URL (obsidianaitools.com) to actual API URL (ultimateai.org)
+				env.ANTHROPIC_BASE_URL = mapToApiUrl(settings.baseUrl);
 			}
 		}
 		// Gemini: use GEMINI_API_KEY
 		if (agentId === settings.gemini.id) {
 			env.GEMINI_API_KEY = settings.apiKey;
 			if (settings.baseUrl) {
-				env.GOOGLE_GEMINI_BASE_URL = settings.baseUrl;
+				// Map display URL (obsidianaitools.com) to actual API URL (ultimateai.org)
+				env.GOOGLE_GEMINI_BASE_URL = mapToApiUrl(settings.baseUrl);
 			}
 			if (settings.model) {
 				env.GEMINI_MODEL = settings.model;
@@ -416,7 +419,8 @@ function buildAgentConfigWithApiKey(
 		if (agentId === settings.codex.id) {
 			env.OPENAI_API_KEY = settings.apiKey;
 			if (settings.baseUrl) {
-				env.OPENAI_BASE_URL = settings.baseUrl;
+				// Map display URL (obsidianaitools.com) to actual API URL (ultimateai.org)
+				env.OPENAI_BASE_URL = mapToApiUrl(settings.baseUrl);
 			}
 			if (settings.model) {
 				env.OPENAI_MODEL = settings.model;

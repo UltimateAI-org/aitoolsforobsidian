@@ -142,19 +142,53 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				text.inputEl.type = "password";
 			});
 
-		new Setting(containerEl)
-			.setName("Base URL")
-			.setDesc(
-				"Base URL for all API requests. Default: https://chat.ultimateai.org",
-			)
-			.addText((text) => {
-				text.setPlaceholder("https://chat.ultimateai.org")
-					.setValue(this.plugin.settings.baseUrl)
-					.onChange(async (value) => {
-						this.plugin.settings.baseUrl = value.trim();
-						await this.plugin.saveSettings();
-					});
-			});
+		// API Key Instructions
+		const instructionsDiv = containerEl.createDiv({
+			cls: "obsidianaitools-onboarding-instructions",
+		});
+
+		instructionsDiv.createEl("h4", {
+			text: "How to get your API key:",
+			cls: "obsidianaitools-onboarding-instructions-header",
+		});
+
+		const stepsList = instructionsDiv.createEl("ol", {
+			cls: "obsidianaitools-onboarding-instructions-list",
+		});
+
+		const step1 = stepsList.createEl("li");
+		step1.appendText("Go to ");
+		step1.createEl("a", {
+			text: "https://chat.obsidianaitools.com",
+			href: "https://chat.obsidianaitools.com",
+		});
+
+		stepsList.createEl("li", { text: "Click Settings (top right)" });
+		stepsList.createEl("li", { text: "Left Click Account" });
+		stepsList.createEl("li", { text: "Copy API Key" });
+		stepsList.createEl("li", { text: "Paste into field above" });
+
+		instructionsDiv.createEl("p", {
+			text: "Note: This plugin only supports AI Tools inside Obsidian.",
+		});
+
+		const subscriptionText = instructionsDiv.createEl("p");
+		subscriptionText.appendText(
+			"For more details on getting a subscription please visit ",
+		);
+		subscriptionText.createEl("a", {
+			text: "https://obsidianaitools.com",
+			href: "https://obsidianaitools.com",
+		});
+
+		const supportText = instructionsDiv.createEl("p");
+		supportText.appendText(
+			"The API is hosted with UltimateAI - for API support please email ",
+		);
+		supportText.createEl("a", {
+			text: "support@ultimateai.org",
+			href: "mailto:support@ultimateai.org",
+		});
 
 		new Setting(containerEl)
 			.setName("Send message shortcut")

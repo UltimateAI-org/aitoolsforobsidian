@@ -128,7 +128,7 @@ const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	hasCompletedOnboarding: false,
 	autoInstallAgents: true,
 	apiKey: "",
-	baseUrl: "https://chat.ultimateai.org",
+	baseUrl: "https://chat.obsidianaitools.com",
 	model: "MiniMax-M2.1",
 };
 
@@ -600,7 +600,7 @@ export default class AgentClientPlugin extends Plugin {
 					: DEFAULT_SETTINGS.apiKey,
 			baseUrl:
 				typeof rawSettings.baseUrl === "string"
-					? rawSettings.baseUrl
+					? rawSettings.baseUrl.replace(/\/$/, "") // Remove trailing slash
 					: DEFAULT_SETTINGS.baseUrl,
 			model:
 				typeof rawSettings.model === "string"

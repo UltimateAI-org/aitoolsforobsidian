@@ -1,5 +1,7 @@
 import { spawn, ChildProcess } from "child_process";
 import { Platform } from "obsidian";
+import { getEnhancedWindowsEnv } from "./windows-env";
+import { resolveCommandDirectory } from "./path-utils";
 
 /**
  * Agent installer for ACP-compatible agents.
@@ -58,17 +60,19 @@ export function installAgent(
 		return null;
 	}
 
-	// Use the node path from settings to derive npm path
-	const nodeDir = nodePath.trim() ? nodePath.trim().replace(/\/node$/, "") : "";
-	const npmExec = nodeDir ? `${nodeDir}/npm` : "npm";
+	// Use the node path from settings to derive node directory
+	const nodeDir = nodePath.trim() ? resolveCommandDirectory(nodePath.trim()) || "" : "";
+	// We add nodeDir to PATH later, so we can just use "npm" and let the shell resolve it.
+	// This avoids issues with spaces in paths (e.g. "Program Files") and file extensions (.cmd).
+	const npmExec = "npm";
 
 	// Build command based on platform
 	let command: string;
 	let args: string[];
 
 	if (Platform.isWin) {
-		// On Windows, use cmd.exe with /c
-		command = "cmd.exe";
+		// On Windows, use cmd.exe with /c (use ComSpec for reliability)
+		command = process.env.ComSpec || "cmd.exe";
 		args = ["/c", `${npmExec} install -g ${getAgentNpmPackage(agentId)}`];
 	} else {
 		// On macOS/Linux, use login shell to get proper PATH
@@ -81,17 +85,21 @@ export function installAgent(
 		];
 	}
 
+	// Enhance environment on Windows to include full system PATH
+	let env = { ...process.env };
+	if (Platform.isWin) {
+		env = getEnhancedWindowsEnv(env);
+	}
+
+	// Add nodeDir to PATH if specified
+	if (nodeDir) {
+		const separator = Platform.isWin ? ";" : ":";
+		env.PATH = `${nodeDir}${separator}${env.PATH || ""}`;
+	}
+
 	const childProcess = spawn(command, args, {
 		stdio: ["pipe", "pipe", "pipe"],
-		env: {
-			...process.env,
-			// Ensure npm uses the correct node
-			...(nodeDir
-				? {
-						PATH: `${nodeDir}:${process.env.PATH || ""}`,
-				  }
-				: {}),
-		},
+		env,
 	});
 
 	childProcess.stdout?.on("data", (data: unknown) => {
@@ -128,4 +136,14 @@ function getAgentNpmPackage(agentId: string): string {
  */
 export function isKnownAgent(agentId: string): boolean {
 	return ["claude-code-acp", "codex-acp", "gemini-cli"].includes(agentId);
+}
+
+/**
+ * Check if an agent is already installed globally
+ */
+export function isAgentInstalled(agentId: string): boolean {
+	// Import detectAgentPath inline to avoid circular dependency
+	const { detectAgentPath } = require("./path-detector");
+	const result = detectAgentPath(agentId);
+	return result.path !== null;
 }

@@ -10,7 +10,9 @@
       "Bash(npx tsc:*)",
       "Bash(npm run build)",
       "Bash(git rev-parse:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(python:*)",
+      "Bash(claude-code-acp:*)"
     ]
   }
 }

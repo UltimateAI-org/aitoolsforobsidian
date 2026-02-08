@@ -25,7 +25,7 @@
 		"@types/semver": "^7.7.1",
 		"@typescript-eslint/parser": "^8.0.0",
 		"@typescript-eslint/utils": "^8.0.0",
-		"esbuild": "0.17.3",
+		"esbuild": "^0.27.3",
 		"eslint": "^9.0.0",
 		"eslint-plugin-obsidianmd": "^0.1.9",
 		"obsidian": "latest",
@@ -33,7 +33,7 @@
 		"tslib": "2.4.0",
 		"typescript": "^5.9.3",
 		"typescript-eslint": "^8.0.0",
-		"vitepress": "^1.6.4"
+		"vitepress": "^0.1.1"
 	},
 	"dependencies": {
 		"@agentclientprotocol/sdk": "^0.12.0",
