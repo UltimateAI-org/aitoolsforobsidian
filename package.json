@@ -33,7 +33,7 @@
 		"tslib": "2.4.0",
 		"typescript": "^5.9.3",
 		"typescript-eslint": "^8.0.0",
-		"vitepress": "^0.1.1"
+		"vitepress": "^1.6.4"
 	},
 	"dependencies": {
 		"@agentclientprotocol/sdk": "^0.12.0",
