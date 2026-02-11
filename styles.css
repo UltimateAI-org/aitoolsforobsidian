@@ -365,6 +365,92 @@ If your plugin does not need CSS, delete this file.
 	background-color: var(--background-modifier-hover) !important;
 }
 
+/* ===== Permission "Other" Option Form ===== */
+.obsidianaitools-permission-kind-other {
+	background-color: var(--background-secondary) !important;
+	color: var(--text-muted) !important;
+	border-color: var(--background-modifier-border) !important;
+}
+
+.obsidianaitools-permission-kind-other:hover {
+	background-color: var(--background-modifier-hover) !important;
+	color: var(--text-normal) !important;
+}
+
+.obsidianaitools-permission-other-form {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 8px;
+	background-color: var(--background-primary);
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.obsidianaitools-permission-other-textarea {
+	width: 100%;
+	min-height: 80px;
+	padding: 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	font-family: inherit;
+	font-size: 13px;
+	resize: vertical;
+	outline: none;
+}
+
+.obsidianaitools-permission-other-textarea:focus {
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+.obsidianaitools-permission-other-textarea:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.obsidianaitools-permission-other-actions {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+}
+
+.obsidianaitools-permission-other-cancel {
+	padding: 6px 12px !important;
+	border: 1px solid var(--background-modifier-border) !important;
+	border-radius: 4px !important;
+	background-color: var(--background-primary) !important;
+	color: var(--text-normal) !important;
+	cursor: pointer;
+	font-size: 13px;
+}
+
+.obsidianaitools-permission-other-cancel:hover {
+	background-color: var(--background-modifier-hover) !important;
+}
+
+.obsidianaitools-permission-other-submit {
+	padding: 6px 12px !important;
+	border: 1px solid var(--interactive-accent) !important;
+	border-radius: 4px !important;
+	background-color: var(--interactive-accent) !important;
+	color: var(--text-on-accent) !important;
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 500;
+}
+
+.obsidianaitools-permission-other-submit:hover:not(:disabled) {
+	background-color: var(--interactive-accent-hover) !important;
+}
+
+.obsidianaitools-permission-other-submit:disabled {
+	opacity: 0.5;
+	cursor: not-allowed !important;
+}
+
 /* ===== Chat View Components ===== */
 
 /* Main container */

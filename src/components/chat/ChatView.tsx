@@ -534,6 +534,19 @@ function ChatComponent({
 		}
 	}, [logger, agentSession, chat.lastUserMessage]);
 
+	const handleSendMessageFromPermission = useCallback(
+		async (content: string) => {
+			await chat.sendMessage(content, {
+				activeNote: autoMention.activeNote,
+				vaultBasePath:
+					(plugin.app.vault.adapter as VaultAdapterWithBasePath)
+						.basePath || "",
+				isAutoMentionDisabled: autoMention.isDisabled,
+			});
+		},
+		[chat, autoMention, plugin],
+	);
+
 	const handleClearError = useCallback(() => {
 		chat.clearError();
 	}, [chat]);
@@ -858,6 +871,7 @@ function ChatComponent({
 				view={view}
 				acpClient={acpClientRef.current}
 				onApprovePermission={permission.approvePermission}
+				onSendMessage={handleSendMessageFromPermission}
 				onClearError={handleClearError}
 				isAgentConfigured={!!session.agentId}
 				onOpenSettings={handleOpenSettings}

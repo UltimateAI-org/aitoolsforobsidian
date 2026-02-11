@@ -19,6 +19,8 @@ interface MessageContentRendererProps {
 		requestId: string,
 		optionId: string,
 	) => Promise<void>;
+	/** Callback to send a message (used for "Other" option) */
+	onSendMessage?: (content: string) => Promise<void>;
 }
 
 export function MessageContentRenderer({
@@ -28,6 +30,7 @@ export function MessageContentRenderer({
 	messageRole,
 	acpClient,
 	onApprovePermission,
+	onSendMessage,
 }: MessageContentRendererProps) {
 	switch (content.type) {
 		case "text":
@@ -58,6 +61,7 @@ export function MessageContentRenderer({
 					plugin={plugin}
 					acpClient={acpClient}
 					onApprovePermission={onApprovePermission}
+					onSendMessage={onSendMessage}
 				/>
 			);
 

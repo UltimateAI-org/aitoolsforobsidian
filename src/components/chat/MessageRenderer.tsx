@@ -16,6 +16,8 @@ interface MessageRendererProps {
 		requestId: string,
 		optionId: string,
 	) => Promise<void>;
+	/** Callback to send a message (used for "Other" option) */
+	onSendMessage?: (content: string) => Promise<void>;
 }
 
 /**
@@ -61,6 +63,7 @@ export function MessageRenderer({
 	plugin,
 	acpClient,
 	onApprovePermission,
+	onSendMessage,
 }: MessageRendererProps) {
 	const groups = groupContent(message.content);
 
@@ -85,6 +88,7 @@ export function MessageRenderer({
 									messageRole={message.role}
 									acpClient={acpClient}
 									onApprovePermission={onApprovePermission}
+									onSendMessage={onSendMessage}
 								/>
 							))}
 						</div>
@@ -100,6 +104,7 @@ export function MessageRenderer({
 								messageRole={message.role}
 								acpClient={acpClient}
 								onApprovePermission={onApprovePermission}
+								onSendMessage={onSendMessage}
 							/>
 						</div>
 					);

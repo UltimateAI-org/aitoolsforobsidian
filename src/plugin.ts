@@ -140,16 +140,24 @@ export default class AgentClientPlugin extends Plugin {
 
 	async onload() {
 		try {
+			console.log("[AI Tools] Loading plugin...");
 			await this.loadSettings();
+			console.log("[AI Tools] Settings loaded successfully");
 
 			// Initialize settings store
 			this.settingsStore = createSettingsStore(this.settings, this);
+			console.log("[AI Tools] Settings store initialized");
 
 			// Show onboarding modal on first install
 			if (!this.settings.hasCompletedOnboarding) {
 				// Use setTimeout to ensure UI is ready
 				setTimeout(() => {
-					new OnboardingModal(this.app, this).open();
+					try {
+						new OnboardingModal(this.app, this).open();
+					} catch (error) {
+						console.error("[AI Tools] Onboarding modal error:", error);
+						// Don't block plugin load if onboarding fails
+					}
 				}, 100);
 			}
 
@@ -175,6 +183,7 @@ export default class AgentClientPlugin extends Plugin {
 			// Register agent-specific commands
 			this.registerAgentCommands();
 			this.registerPermissionCommands();
+			console.log("[AI Tools] Commands registered");
 
 			this.addSettingTab(new AgentClientSettingTab(this.app, this));
 
@@ -193,14 +202,15 @@ export default class AgentClientPlugin extends Plugin {
 					}
 				}),
 			);
+			console.log("[AI Tools] Plugin loaded successfully ✓");
 		} catch (error) {
 			console.error("[AI Tools] Failed to initialize plugin:", error);
 			new Notice(
-				"AI Tools failed to initialize. Check console for details.",
+				"[AI Tools] Plugin loaded with errors. Check console for details.",
 				5000,
 			);
-			// Still throw to let Obsidian know initialization failed
-			throw error;
+			// Don't throw - allow plugin to load even with errors
+			// This prevents Obsidian from disabling the plugin
 		}
 	}
 

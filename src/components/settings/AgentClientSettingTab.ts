@@ -40,7 +40,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		docContainer.createSpan({ text: "Need help? Check out the " });
 		docContainer.createEl("a", {
 			text: "documentation",
-			href: "https://ultimateai-org.github.io/aitoolsforobsidian/",
+			href: "https://github.com/UltimateAI-org/aitoolsforobsidian",
 		});
 		docContainer.createSpan({ text: "." });
 

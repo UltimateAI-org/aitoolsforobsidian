@@ -18,6 +18,8 @@ interface ToolCallRendererProps {
 		requestId: string,
 		optionId: string,
 	) => Promise<void>;
+	/** Callback to send a message (used for "Other" option) */
+	onSendMessage?: (content: string) => Promise<void>;
 }
 
 export function ToolCallRenderer({
@@ -25,6 +27,7 @@ export function ToolCallRenderer({
 	plugin,
 	acpClient,
 	onApprovePermission,
+	onSendMessage,
 }: ToolCallRendererProps) {
 	const {
 		kind,
@@ -179,6 +182,7 @@ export function ToolCallRenderer({
 					plugin={plugin}
 					onApprovePermission={onApprovePermission}
 					onOptionSelected={setSelectedOptionId}
+					onSendMessage={onSendMessage}
 				/>
 			)}
 		</div>

@@ -45,6 +45,8 @@ export interface ChatMessagesProps {
 		requestId: string,
 		optionId: string,
 	) => Promise<void>;
+	/** Callback to send a message (used for "Other" option) */
+	onSendMessage?: (content: string) => Promise<void>;
 	/** Callback to clear the error */
 	onClearError: () => void;
 	/** Whether the agent is properly configured */
@@ -76,6 +78,7 @@ export function ChatMessages({
 	view,
 	acpClient,
 	onApprovePermission,
+	onSendMessage,
 	onClearError,
 	isAgentConfigured,
 	onOpenSettings,
@@ -239,6 +242,7 @@ export function ChatMessages({
 							plugin={plugin}
 							acpClient={acpClient}
 							onApprovePermission={onApprovePermission}
+							onSendMessage={onSendMessage}
 						/>
 					))}
 					{isSending && (
