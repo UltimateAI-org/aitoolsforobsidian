@@ -928,6 +928,18 @@ export class ChatView extends ItemView {
 		return "bot-message-square";
 	}
 
+	getViewState() {
+		// Return a simple state object to enable view persistence
+		// The actual chat state is managed by React and session history
+		return { type: VIEW_TYPE_CHAT };
+	}
+
+	setState(state: unknown, result: unknown) {
+		// View state is restored - React component will handle actual state
+		this.logger.log("[ChatView] setState() called", state, result);
+		return Promise.resolve();
+	}
+
 	onOpen() {
 		const container = this.containerEl.children[1];
 		container.empty();
