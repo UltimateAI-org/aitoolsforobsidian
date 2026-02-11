@@ -620,14 +620,26 @@ function ChatComponent({
 		return () => {
 			logger.log("[ChatView] Cleanup: auto-export and close session");
 			// Use refs to get latest values (avoid stale closures)
-			void (async () => {
-				await autoExportRef.current.autoExportIfEnabled(
-					"closeChat",
-					messagesRef.current,
-					sessionRef.current,
-				);
-				await closeSessionRef.current();
-			})();
+			// IMPORTANT: catch all errors to prevent unhandled promise rejections
+			// which cause Obsidian to disable the plugin on next restart
+			(async () => {
+				try {
+					await autoExportRef.current.autoExportIfEnabled(
+						"closeChat",
+						messagesRef.current,
+						sessionRef.current,
+					);
+				} catch (error) {
+					console.warn("[AI Tools] Auto-export during cleanup failed:", error);
+				}
+				try {
+					await closeSessionRef.current();
+				} catch (error) {
+					console.warn("[AI Tools] Session close during cleanup failed:", error);
+				}
+			})().catch((error) => {
+				console.warn("[AI Tools] Cleanup error:", error);
+			});
 		};
 		// Empty dependency array - only run on unmount
 	}, []);
@@ -929,21 +941,29 @@ export class ChatView extends ItemView {
 	}
 
 	onOpen() {
-		const container = this.containerEl.children[1];
-		container.empty();
+		try {
+			const container = this.containerEl.children[1];
+			container.empty();
 
-		this.root = createRoot(container);
-		this.root.render(<ChatComponent plugin={this.plugin} view={this} />);
+			this.root = createRoot(container);
+			this.root.render(<ChatComponent plugin={this.plugin} view={this} />);
+		} catch (error) {
+			console.error("[AI Tools] Failed to open chat view:", error);
+		}
 		return Promise.resolve();
 	}
 
 	onClose(): Promise<void> {
-		this.logger.log("[ChatView] onClose() called");
-		// Cleanup is handled by React useEffect cleanup in ChatComponent
-		// which performs auto-export and closeSession
-		if (this.root) {
-			this.root.unmount();
-			this.root = null;
+		try {
+			this.logger.log("[ChatView] onClose() called");
+			// Cleanup is handled by React useEffect cleanup in ChatComponent
+			// which performs auto-export and closeSession
+			if (this.root) {
+				this.root.unmount();
+				this.root = null;
+			}
+		} catch (error) {
+			console.error("[AI Tools] Failed to close chat view:", error);
 		}
 		return Promise.resolve();
 	}
