@@ -141,9 +141,9 @@ export function isKnownAgent(agentId: string): boolean {
 /**
  * Check if an agent is already installed globally
  */
-export function isAgentInstalled(agentId: string): boolean {
-	// Import detectAgentPath inline to avoid circular dependency
-	const { detectAgentPath } = require("./path-detector");
+export async function isAgentInstalled(agentId: string): Promise<boolean> {
+	// Use dynamic import to avoid circular dependency
+	const { detectAgentPath } = await import("./path-detector");
 	const result = detectAgentPath(agentId);
 	return result.path !== null;
 }

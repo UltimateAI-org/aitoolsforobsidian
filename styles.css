@@ -2044,6 +2044,11 @@ If your plugin does not need CSS, delete this file.
 	background-color: var(--background-primary);
 }
 
+/* Utility class for hiding elements */
+.obsidianaitools-hidden {
+	display: none !important;
+}
+
 /* Skip button */
 .obsidianaitools-onboarding-skip-button {
 	opacity: 0.8;

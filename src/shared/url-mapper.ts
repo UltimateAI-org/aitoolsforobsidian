@@ -33,7 +33,7 @@ export function mapToApiUrl(url: string): string {
 		}
 
 		return url;
-	} catch (error) {
+	} catch {
 		// If URL parsing fails, return original
 		return url;
 	}
@@ -59,7 +59,7 @@ export function mapToDisplayUrl(url: string): string {
 		}
 
 		return url;
-	} catch (error) {
+	} catch {
 		return url;
 	}
 }

@@ -12,7 +12,10 @@
       "Bash(git rev-parse:*)",
       "Bash(npx eslint:*)",
       "Bash(python:*)",
-      "Bash(claude-code-acp:*)"
+      "Bash(claude-code-acp:*)",
+      "Bash(npm_package_version=0.7.3 node:*)",
+      "Bash(git push)",
+      "Bash(npm run lint)"
     ]
   }
 }

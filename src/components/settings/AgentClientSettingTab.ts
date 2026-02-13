@@ -147,10 +147,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			cls: "obsidianaitools-onboarding-instructions",
 		});
 
-		instructionsDiv.createEl("h4", {
-			text: "How to get your API key:",
-			cls: "obsidianaitools-onboarding-instructions-header",
-		});
+		new Setting(instructionsDiv).setName("How to get your API key:").setHeading();
 
 		const stepsList = instructionsDiv.createEl("ol", {
 			cls: "obsidianaitools-onboarding-instructions-list",

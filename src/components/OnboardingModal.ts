@@ -480,9 +480,8 @@ export class OnboardingModal extends Modal {
 
 		// Terminal output container (initially hidden)
 		const terminalContainer = this.stepContainer.createDiv({
-			cls: "obsidianaitools-onboarding-terminal",
+			cls: "obsidianaitools-onboarding-terminal obsidianaitools-hidden",
 		});
-		terminalContainer.style.display = "none";
 
 		const terminalHeader = terminalContainer.createDiv({
 			cls: "obsidianaitools-terminal-renderer-header",
@@ -528,7 +527,7 @@ export class OnboardingModal extends Modal {
 				this.installErrorMessage = "";
 
 				// Show terminal and disable navigation
-				terminalContainer.style.display = "block";
+				terminalContainer.removeClass("obsidianaitools-hidden");
 				this.terminalOutputEl!.setText("");
 
 				// Show time estimate for agents with many dependencies

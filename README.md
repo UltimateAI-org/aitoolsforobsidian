@@ -37,7 +37,18 @@ https://github.com/user-attachments/assets/1c538349-b3fb-44dd-a163-7331cbca7824
    https://github.com/UltimateAI-org/aitoolsforobsidian
    ```
 4. BRAT will download the latest release and keep it auto-updated.
-5. Enable Agent Client from the plugin list.
+5. Enable AI Tools from the plugin list.
+6. Install Claude Code via docs https://code.claude.com/docs/en/setup
+7. Install Gemini CLI via docs https://geminicli.com/docs/get-started/installation/
+8. Open AI Tools Settings, Windows users set Node.js path to C:\Program Files\nodejs\node.exe
+9. API Configuration - get your API from https://chat.obsidianaitools.com/ > Settings > Account
+10. Add API Key and use BASE URL https://chat.obsidianaitools.com
+11. Set Claude Code Absolute Path on Windows to C:\Users\%username%\AppData\Roaming\npm\claude-code-acp.cmd
+- Make %username% your Windows User Folder
+12. Set Gemini CLI Absolute Path on Windows to C:\Users\%username%\AppData\Roaming\npm\gemini.cmd
+- Make %username% your Windows User Folder
+- Set ARGUEMENTS --experimental-acp
+13. Set you Export Folder for your Chats
 
 ### 💻 Manual Installation
 1. Download the latest release files from [GitHub Releases](https://github.com/UltimateAI-org/aitoolsforobsidian/releases):
