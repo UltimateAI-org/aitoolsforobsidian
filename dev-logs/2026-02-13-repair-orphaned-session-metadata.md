@@ -55,8 +55,27 @@ Added a `repairSessionMetadata()` method that runs on plugin startup, scans the 
 - Changed label from "Fork session (create new branch)" to "Duplicate session".
 - Rationale: "Fork" and "branch" are git terminology unfamiliar to most users. "Duplicate" is clearer for the actual behavior (copying a session to continue independently).
 
+## CI Lint Fixes (February 14, 2026)
+
+Pull request #11 failed CI due to lint errors. Fixed the following:
+
+**`src/plugin.ts`** (7 errors)
+- Changed all `console.log()` calls to `console.debug()`. ESLint rule only allows `warn`, `error`, `debug`.
+
+**`src/components/chat/PermissionRequestSection.tsx`** (1 error)
+- `onClick={handleSubmitCustomText}` passed a Promise-returning async function where void was expected.
+- Fixed: `onClick={() => void handleSubmitCustomText()}`
+
+**`src/adapters/obsidian/settings-store.adapter.ts`** (1 error)
+- `textContent.text as string` — unnecessary type assertion since `.text` is already typed as `string`.
+- Fixed: removed `as string`.
+
+**OnboardingModal.ts** (warnings only, not errors)
+- 10+ sentence-case warnings for UI text containing proper nouns (WSL, Node.js, API, etc.). These are correct as-is — rule is set to `warn` and won't fail CI.
+
 ## Verification
 
+- Lint passes: 0 errors, 70 warnings (all sentence-case, non-blocking).
 - Build succeeds (`npm run build`).
 - On next Obsidian reload, orphaned session files in `sessions/` will be detected and their metadata rebuilt into `savedSessions`.
 - Existing sessions with valid metadata are not duplicated (checked via `existingIds` Set).

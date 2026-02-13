@@ -431,7 +431,7 @@ export class SettingsStore implements ISettingsAccess {
 						(c) => c.type === "text",
 					);
 					if (textContent && "text" in textContent) {
-						const text = textContent.text as string;
+						const text = textContent.text;
 						title =
 							text.length > 50
 								? text.substring(0, 50) + "..."
