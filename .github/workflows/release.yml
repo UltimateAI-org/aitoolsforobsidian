@@ -2,8 +2,8 @@ name: Release
 
 on:
   push:
-    branches:
-      - master
+    tags:
+      - "v*"
 
 jobs:
   release:
@@ -21,21 +21,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Bump version
-        run: npm version patch -m "Release v%s"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run version bump script
-        run: node version-bump.mjs
-
       - name: Build plugin
         run: npm run build
 
-      - name: Commit and push changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add manifest.json versions.json
-          git commit -m "Release v$npm_package_version" || echo "No changes to commit"
-          git push
+      - name: Get version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            main.js
+            manifest.json
+            styles.css
+          name: "v${{ steps.version.outputs.version }}"
+          generate_release_notes: true
