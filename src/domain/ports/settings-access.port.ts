@@ -128,4 +128,15 @@ export interface ISettingsAccess {
 	 * @returns Promise that resolves when file is deleted
 	 */
 	deleteSessionMessages(sessionId: string): Promise<void>;
+
+	/**
+	 * Repair orphaned session metadata.
+	 *
+	 * Scans the sessions/ directory for message files that have no
+	 * corresponding entry in savedSessions, and rebuilds the metadata.
+	 *
+	 * @param defaultCwd - Default working directory for orphaned sessions
+	 * @returns Promise that resolves with the number of repaired sessions
+	 */
+	repairSessionMetadata(defaultCwd: string): Promise<number>;
 }

@@ -263,8 +263,8 @@ function SessionItem({
 				)}
 				{canFork && (
 					<IconButton
-						iconName="git-branch"
-						label="Fork session (create new branch)"
+						iconName="copy"
+						label="Duplicate session"
 						className="obsidianaitools-session-history-action-icon obsidianaitools-session-history-fork-icon"
 						onClick={handleFork}
 					/>

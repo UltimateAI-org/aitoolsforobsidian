@@ -366,6 +366,108 @@ export class SettingsStore implements ISettingsAccess {
 			await adapter.remove(filePath);
 		}
 	}
+
+	/**
+	 * Repair orphaned session metadata.
+	 *
+	 * Scans the sessions/ directory for message files that have no
+	 * corresponding entry in savedSessions, and rebuilds the metadata.
+	 *
+	 * @param defaultCwd - Default working directory for orphaned sessions
+	 * @returns Number of repaired sessions
+	 */
+	async repairSessionMetadata(defaultCwd: string): Promise<number> {
+		const adapter = this.plugin.app.vault.adapter;
+		const sessionsDir = this.getSessionsDir();
+
+		// Check if sessions directory exists
+		if (!(await adapter.exists(sessionsDir))) {
+			return 0;
+		}
+
+		// List all files in sessions directory
+		const listing = await adapter.list(sessionsDir);
+		const jsonFiles = listing.files.filter((f: string) =>
+			f.endsWith(".json"),
+		);
+
+		if (jsonFiles.length === 0) {
+			return 0;
+		}
+
+		// Get existing session IDs for quick lookup
+		const existingIds = new Set(
+			(this.state.savedSessions || []).map((s) => s.sessionId),
+		);
+
+		const repairedSessions: SavedSessionInfo[] = [];
+
+		for (const filePath of jsonFiles) {
+			try {
+				const content = await adapter.read(filePath);
+				const data = JSON.parse(content) as SessionMessagesFile;
+
+				// Validate structure
+				if (
+					typeof data.version !== "number" ||
+					!Array.isArray(data.messages) ||
+					!data.sessionId
+				) {
+					continue;
+				}
+
+				// Skip if metadata already exists
+				if (existingIds.has(data.sessionId)) {
+					continue;
+				}
+
+				// Extract title from first user message
+				const firstUserMsg = data.messages.find(
+					(m) => m.role === "user",
+				);
+				let title = "Recovered session";
+				if (firstUserMsg?.content) {
+					const textContent = firstUserMsg.content.find(
+						(c) => c.type === "text",
+					);
+					if (textContent && "text" in textContent) {
+						const text = textContent.text as string;
+						title =
+							text.length > 50
+								? text.substring(0, 50) + "..."
+								: text;
+					}
+				}
+
+				// Extract timestamps
+				const firstTimestamp =
+					data.messages[0]?.timestamp || data.savedAt;
+				const lastTimestamp = data.savedAt || new Date().toISOString();
+
+				repairedSessions.push({
+					sessionId: data.sessionId,
+					agentId: data.agentId || "unknown",
+					cwd: defaultCwd,
+					title,
+					createdAt: firstTimestamp,
+					updatedAt: lastTimestamp,
+				});
+			} catch {
+				// Skip files that can't be parsed
+				continue;
+			}
+		}
+
+		if (repairedSessions.length > 0) {
+			const sessions = [
+				...repairedSessions,
+				...(this.state.savedSessions || []),
+			];
+			await this.updateSettings({ savedSessions: sessions });
+		}
+
+		return repairedSessions.length;
+	}
 }
 
 /**

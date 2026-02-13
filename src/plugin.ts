@@ -154,6 +154,23 @@ export default class AgentClientPlugin extends Plugin {
 			this.settingsStore = createSettingsStore(this.settings, this);
 			console.log("[AI Tools] Settings store initialized");
 
+			// Repair orphaned session metadata (fire-and-forget)
+			const vaultBasePath =
+				(this.app.vault.adapter as { basePath?: string }).basePath ||
+				"";
+			void this.settingsStore
+				.repairSessionMetadata(vaultBasePath)
+				.then((count) => {
+					if (count > 0) {
+						console.log(
+							`[AI Tools] Repaired ${count} orphaned session(s)`,
+						);
+					}
+				})
+				.catch((err) => {
+					console.warn("[AI Tools] Session repair failed:", err);
+				});
+
 			// Show onboarding modal on first install
 			if (!this.settings.hasCompletedOnboarding) {
 				// Use setTimeout to ensure UI is ready
