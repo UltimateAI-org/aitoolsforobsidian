@@ -140,19 +140,19 @@ export default class AgentClientPlugin extends Plugin {
 
 	async onload() {
 		try {
-			console.log("[AI Tools] Loading plugin...");
+			console.debug("[AI Tools] Loading plugin...");
 
 			// Register view FIRST (synchronous) - must happen before any async
 			// operations so Obsidian can restore saved workspace layout immediately
 			this.registerView(VIEW_TYPE_CHAT, (leaf) => new ChatView(leaf, this));
-			console.log("[AI Tools] View registered");
+			console.debug("[AI Tools] View registered");
 
 			await this.loadSettings();
-			console.log("[AI Tools] Settings loaded successfully");
+			console.debug("[AI Tools] Settings loaded successfully");
 
 			// Initialize settings store
 			this.settingsStore = createSettingsStore(this.settings, this);
-			console.log("[AI Tools] Settings store initialized");
+			console.debug("[AI Tools] Settings store initialized");
 
 			// Repair orphaned session metadata (fire-and-forget)
 			const vaultBasePath =
@@ -162,7 +162,7 @@ export default class AgentClientPlugin extends Plugin {
 				.repairSessionMetadata(vaultBasePath)
 				.then((count) => {
 					if (count > 0) {
-						console.log(
+						console.debug(
 							`[AI Tools] Repaired ${count} orphaned session(s)`,
 						);
 					}
@@ -204,7 +204,7 @@ export default class AgentClientPlugin extends Plugin {
 			// Register agent-specific commands
 			this.registerAgentCommands();
 			this.registerPermissionCommands();
-			console.log("[AI Tools] Commands registered");
+			console.debug("[AI Tools] Commands registered");
 
 			this.addSettingTab(new AgentClientSettingTab(this.app, this));
 
@@ -223,7 +223,7 @@ export default class AgentClientPlugin extends Plugin {
 					}
 				}),
 			);
-			console.log("[AI Tools] Plugin loaded successfully ✓");
+			console.debug("[AI Tools] Plugin loaded successfully");
 		} catch (error) {
 			console.error("[AI Tools] Failed to initialize plugin:", error);
 			new Notice(

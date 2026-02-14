@@ -150,7 +150,7 @@ export function PermissionRequestSection({
 								</button>
 								<button
 									className="obsidianaitools-permission-other-submit"
-									onClick={handleSubmitCustomText}
+									onClick={() => void handleSubmitCustomText()}
 									disabled={!customText.trim() || isSubmitting}
 								>
 									{isSubmitting ? "Sending..." : "Send & Reject"}
