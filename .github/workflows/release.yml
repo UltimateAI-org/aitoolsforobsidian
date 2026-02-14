@@ -1,9 +1,6 @@
 name: Release + Minor Version Increment
 
 on:
-  push:
-    branches:
-      - master
   workflow_dispatch:
     inputs:
       version:
@@ -36,7 +33,7 @@ jobs:
 
       - name: Bump version
         run: |
-          git fetch --tags origin +refs/tags/:refs/tags/
+          git fetch --tags
           current=$(node -p 'require("./package.json").version')
 
           # Use provided version or auto-increment
