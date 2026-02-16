@@ -1,9 +1,12 @@
-name: Release
+name: Release + Minor Version Increment
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.8.0 or leave empty for auto-increment)'
+        required: false
+        default: ''
 
 jobs:
   release:
@@ -12,6 +15,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Git
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -21,12 +31,42 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Bump version
+        run: |
+          git fetch --tags
+          current=$(node -p 'require("./package.json").version')
+
+          # Use provided version or auto-increment
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            new_version="${{ github.event.inputs.version }}"
+            echo "Using provided version: $new_version"
+          else
+            new_version=$(node -e "const v='$current'.split('.'); v[1]=(parseInt(v[1])+1).toString(); v[2]='0'; console.log(v.join('.'))")
+            echo "Auto-incrementing from $current to $new_version"
+          fi
+
+          # Update package.json version
+          node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('package.json')); p.version='$new_version'; fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n');"
+
+          # Set the version for npm and run the version bump script
+          export npm_package_version=$new_version
+          node version-bump.mjs
+          git add package.json manifest.json versions.json
+          git commit -m "Release v$new_version" || echo "No changes to commit"
+
+          # Force delete and recreate tag
+          git tag -d "v$new_version" 2>/dev/null || true
+          git push origin :refs/tags/v$new_version 2>/dev/null || true
+          git tag "v$new_version"
+          git push origin master --force
+          git push origin "v$new_version" --force
+
       - name: Build plugin
         run: npm run build
 
-      - name: Get version from tag
+      - name: Get version from package.json
         id: version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: echo "version=$(node -p 'require("./package.json").version')" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -35,5 +75,10 @@ jobs:
             main.js
             manifest.json
             styles.css
-          name: "v${{ steps.version.outputs.version }}"
+          name: "Release v${{ steps.version.outputs.version }}"
           generate_release_notes: true
+          tag_name: "v${{ steps.version.outputs.version }}"
+          draft: false
+          overwrite: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
