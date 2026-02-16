@@ -133,7 +133,7 @@ function ChatComponent({
 		},
 	);
 
-	const { messages, isSending } = chat;
+	const { messages, isSending, streamingPhase } = chat;
 
 	const permission = usePermission(acpAdapter, messages);
 
@@ -875,6 +875,7 @@ function ChatComponent({
 			<ChatMessages
 				messages={messages}
 				isSending={isSending}
+				streamingPhase={streamingPhase}
 				isSessionReady={isSessionReady}
 				isRestoringSession={sessionHistory.loading}
 				agentLabel={activeAgentLabel}

@@ -2,6 +2,7 @@ import * as React from "react";
 const { useRef, useState, useEffect, useCallback } = React;
 
 import type { ChatMessage } from "../../domain/models/chat-message";
+import type { StreamingPhase } from "../../hooks/useChat";
 import type { IAcpClient } from "../../adapters/acp/acp.adapter";
 import type AgentClientPlugin from "../../plugin";
 import type { ChatView } from "./ChatView";
@@ -26,6 +27,8 @@ export interface ChatMessagesProps {
 	messages: ChatMessage[];
 	/** Whether a message is currently being sent */
 	isSending: boolean;
+	/** Current streaming phase (idle, waiting, thinking, responding) */
+	streamingPhase: StreamingPhase;
 	/** Whether the session is ready for user input */
 	isSessionReady: boolean;
 	/** Whether a session is being restored (load/resume/fork) */
@@ -57,6 +60,60 @@ export interface ChatMessagesProps {
 	onInstallAgent?: (agentId: string) => Promise<void>;
 }
 
+const PHASE_LABELS: Record<StreamingPhase, string> = {
+	idle: "",
+	waiting: "Starting...",
+	thinking: "Pondering...",
+	responding: "Responding...",
+	awaiting_approval: "Waiting for approval...",
+};
+
+function LoadingIndicator({ streamingPhase }: { streamingPhase: StreamingPhase }) {
+	const [elapsed, setElapsed] = useState(0);
+	const phaseRef = useRef(streamingPhase);
+
+	// Reset timer when phase changes
+	useEffect(() => {
+		if (phaseRef.current !== streamingPhase) {
+			phaseRef.current = streamingPhase;
+			setElapsed(0);
+		}
+	}, [streamingPhase]);
+
+	// Tick every second
+	useEffect(() => {
+		const interval = setInterval(() => setElapsed((e) => e + 1), 1000);
+		return () => clearInterval(interval);
+	}, [streamingPhase]);
+
+	const label = PHASE_LABELS[streamingPhase];
+	const showTimer = elapsed >= 3 && streamingPhase !== "idle";
+
+	return (
+		<div className="obsidianaitools-loading-indicator">
+			<div className="obsidianaitools-loading-dots">
+				<div className="obsidianaitools-loading-dot"></div>
+				<div className="obsidianaitools-loading-dot"></div>
+				<div className="obsidianaitools-loading-dot"></div>
+				<div className="obsidianaitools-loading-dot"></div>
+				<div className="obsidianaitools-loading-dot"></div>
+				<div className="obsidianaitools-loading-dot"></div>
+				<div className="obsidianaitools-loading-dot"></div>
+				<div className="obsidianaitools-loading-dot"></div>
+				<div className="obsidianaitools-loading-dot"></div>
+			</div>
+			{label && (
+				<span className="obsidianaitools-loading-label">
+					{label}
+					{showTimer && (
+						<span className="obsidianaitools-loading-timer"> {elapsed}s</span>
+					)}
+				</span>
+			)}
+		</div>
+	);
+}
+
 /**
  * Messages container component for the chat view.
  *
@@ -70,6 +127,7 @@ export interface ChatMessagesProps {
 export function ChatMessages({
 	messages,
 	isSending,
+	streamingPhase,
 	isSessionReady,
 	isRestoringSession,
 	agentLabel,
@@ -246,19 +304,7 @@ export function ChatMessages({
 						/>
 					))}
 					{isSending && (
-						<div className="obsidianaitools-loading-indicator">
-							<div className="obsidianaitools-loading-dots">
-								<div className="obsidianaitools-loading-dot"></div>
-								<div className="obsidianaitools-loading-dot"></div>
-								<div className="obsidianaitools-loading-dot"></div>
-								<div className="obsidianaitools-loading-dot"></div>
-								<div className="obsidianaitools-loading-dot"></div>
-								<div className="obsidianaitools-loading-dot"></div>
-								<div className="obsidianaitools-loading-dot"></div>
-								<div className="obsidianaitools-loading-dot"></div>
-								<div className="obsidianaitools-loading-dot"></div>
-							</div>
-						</div>
+						<LoadingIndicator streamingPhase={streamingPhase} />
 					)}
 				</>
 			)}
