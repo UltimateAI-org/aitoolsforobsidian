@@ -36,6 +36,16 @@ export interface SendMessageOptions {
 }
 
 /**
+ * The current phase of agent response streaming.
+ * - idle: No active streaming
+ * - waiting: Message sent, waiting for first chunk
+ * - thinking: Receiving thought chunks (agent is reasoning)
+ * - responding: Receiving message/tool chunks (agent is responding)
+ * - awaiting_approval: A permission request is shown, waiting for user action
+ */
+export type StreamingPhase = "idle" | "waiting" | "thinking" | "responding" | "awaiting_approval";
+
+/**
  * Return type for useChat hook.
  */
 export interface UseChatReturn {
@@ -43,6 +53,8 @@ export interface UseChatReturn {
 	messages: ChatMessage[];
 	/** Whether a message is currently being sent */
 	isSending: boolean;
+	/** Current streaming phase (idle, waiting, thinking, responding) */
+	streamingPhase: StreamingPhase;
 	/** Last user message (can be restored after cancel) */
 	lastUserMessage: string | null;
 	/** Error information from message operations */
@@ -224,6 +236,7 @@ export function useChat(
 	// Message state
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [isSending, setIsSending] = useState(false);
+	const [streamingPhase, setStreamingPhase] = useState<StreamingPhase>("idle");
 	const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
 	const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null);
 
@@ -436,6 +449,7 @@ export function useChat(
 		(update: SessionUpdate): void => {
 			switch (update.type) {
 				case "agent_message_chunk":
+					setStreamingPhase("responding");
 					updateLastMessage({
 						type: "text",
 						text: update.text,
@@ -443,6 +457,7 @@ export function useChat(
 					break;
 
 				case "agent_thought_chunk":
+					setStreamingPhase("thinking");
 					updateLastMessage({
 						type: "agent_thought",
 						text: update.text,
@@ -458,6 +473,7 @@ export function useChat(
 
 				case "tool_call":
 				case "tool_call_update":
+					setStreamingPhase(update.permissionRequest ? "awaiting_approval" : "responding");
 					upsertToolCall(update.toolCallId, {
 						type: "tool_call",
 						toolCallId: update.toolCallId,
@@ -494,6 +510,7 @@ export function useChat(
 		setMessages([]);
 		setLastUserMessage(null);
 		setIsSending(false);
+		setStreamingPhase("idle");
 		setErrorInfo(null);
 	}, []);
 
@@ -522,6 +539,7 @@ export function useChat(
 
 			setMessages(chatMessages);
 			setIsSending(false);
+			setStreamingPhase("idle");
 			setErrorInfo(null);
 		},
 		[],
@@ -536,6 +554,7 @@ export function useChat(
 		(localMessages: ChatMessage[]): void => {
 			setMessages(localMessages);
 			setIsSending(false);
+			setStreamingPhase("idle");
 			setErrorInfo(null);
 		},
 		[],
@@ -626,6 +645,7 @@ export function useChat(
 
 			// Phase 3: Set sending state and store original message
 			setIsSending(true);
+			setStreamingPhase("waiting");
 			setLastUserMessage(content);
 
 			// Phase 4: Send prepared prompt to agent using message-service
@@ -643,10 +663,12 @@ export function useChat(
 				if (result.success) {
 					// Success - clear stored message
 					setIsSending(false);
+					setStreamingPhase("idle");
 					setLastUserMessage(null);
 				} else {
 					// Error from message-service
 					setIsSending(false);
+					setStreamingPhase("idle");
 					setErrorInfo(
 						result.error
 							? {
@@ -663,6 +685,7 @@ export function useChat(
 			} catch (error) {
 				// Unexpected error
 				setIsSending(false);
+				setStreamingPhase("idle");
 				setErrorInfo({
 					title: "Send Message Failed",
 					message: `Failed to send message: ${error instanceof Error ? error.message : String(error)}`,
@@ -684,6 +707,7 @@ export function useChat(
 	return {
 		messages,
 		isSending,
+		streamingPhase,
 		lastUserMessage,
 		errorInfo,
 		sendMessage,

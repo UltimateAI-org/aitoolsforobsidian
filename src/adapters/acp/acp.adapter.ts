@@ -483,7 +483,33 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 
 			const timeoutPromise = new Promise<never>((_, reject) => {
 				setTimeout(() => {
-					reject(new Error(`Agent initialization timed out after 30 seconds. The agent process spawned successfully (PID: ${agentProcess.pid}) but did not respond to the initialize request. This could indicate: 1) Missing or invalid API key/environment variables, 2) Agent waiting for authentication, 3) Network connectivity issues. Check the console logs for more details. Node version: ${process.version}, npm version: ${process.env.npm_config_user_agent || 'unknown'}`));
+					const causes: string[] = [];
+
+					// Suggest install command for known agents
+					const installCmd = getAgentInstallCommand(config.id);
+					if (installCmd) {
+						causes.push(`The agent package may not be installed. Run:\n  ${installCmd}`);
+					}
+
+					// WSL hint on Windows
+					if (Platform.isWin && this.plugin.settings.windowsWslMode) {
+						causes.push("WSL may not be installed or configured. Run: wsl --install");
+					}
+
+					causes.push("Missing or invalid API key/environment variables");
+					causes.push("Network connectivity issues");
+
+					const message = [
+						"Agent initialization timed out after 30 seconds.",
+						"",
+						"The agent process started but did not respond. Common causes:",
+						"",
+						...causes.map(c => `\u2022 ${c}`),
+						"",
+						`Check the console logs (Ctrl+Shift+I) for more details. Node version: ${process.version}`,
+					].join("\n");
+
+					reject(new Error(message));
 				}, 30000);
 			});
 

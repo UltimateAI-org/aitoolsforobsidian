@@ -1,6 +1,6 @@
 {
   "name": "aitoolsforobsidian",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Use AI coding agents directly inside Obsidian",
   "main": "main.js",
   "scripts": {
