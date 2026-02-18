@@ -1,10 +1,10 @@
-name: Release + Minor Version Increment
+name: Release + Patch Version Increment
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., 0.8.0 or leave empty for auto-increment)'
+        description: 'Version to release (e.g., 0.8.1 or leave empty for auto-patch)'
         required: false
         default: ''
 
@@ -36,13 +36,14 @@ jobs:
           git fetch --tags
           current=$(node -p 'require("./package.json").version')
 
-          # Use provided version or auto-increment
+          # Use provided version or auto-increment patch level
           if [ -n "${{ github.event.inputs.version }}" ]; then
             new_version="${{ github.event.inputs.version }}"
             echo "Using provided version: $new_version"
           else
-            new_version=$(node -e "const v='$current'.split('.'); v[1]=(parseInt(v[1])+1).toString(); v[2]='0'; console.log(v.join('.'))")
-            echo "Auto-incrementing from $current to $new_version"
+            # Logic: Split x.y.z, increment z, and rejoin
+            new_version=$(node -e "const v='$current'.split('.'); v[2]=(parseInt(v[2])+1).toString(); console.log(v.join('.'))")
+            echo "Auto-incrementing patch from $current to $new_version"
           fi
 
           # Update package.json version
