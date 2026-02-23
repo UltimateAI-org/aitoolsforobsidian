@@ -78,7 +78,7 @@ export interface AgentClientPluginSettings {
 const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	claude: {
 		id: "claude-code-acp",
-		displayName: "Claude Code",
+		displayName: "Claude Agent",
 		command: "",
 		args: [],
 		env: [],
@@ -637,6 +637,11 @@ export default class AgentClientPlugin extends Plugin {
 					? rawSettings.model
 					: DEFAULT_SETTINGS.model,
 		};
+
+		// Migrate: update displayName from "Claude Code" to "Claude Agent" (package rename)
+		if (this.settings.claude.displayName === "Claude Code") {
+			this.settings.claude.displayName = DEFAULT_SETTINGS.claude.displayName;
+		}
 
 		this.ensureActiveAgentId();
 	}

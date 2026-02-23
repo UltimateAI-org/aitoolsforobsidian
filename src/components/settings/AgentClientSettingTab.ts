@@ -760,16 +760,16 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		const claude = this.plugin.settings.claude;
 
 		new Setting(sectionEl)
-			.setName(claude.displayName || "Claude Code (ACP)")
+			.setName(claude.displayName || "Claude Agent (ACP)")
 			.setHeading();
 
 		new Setting(sectionEl)
 			.setName("Path")
 			.setDesc(
-				"Absolute path to the claude-code-acp executable. Install via: npm install -g @zed-industries/claude-code-acp",
+				"Absolute path to the claude-agent-acp executable. Install via: npm install -g @zed-industries/claude-agent-acp",
 			)
 			.addText((text) => {
-				text.setPlaceholder("Absolute path to claude-code-acp")
+				text.setPlaceholder("Absolute path to claude-agent-acp")
 					.setValue(claude.command)
 					.onChange(async (value) => {
 						const trimmed = value.trim();
@@ -786,7 +786,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			.addButton((button) =>
 				button
 					.setButtonText("Auto-detect")
-					.setTooltip("Try to automatically detect claude-code-acp")
+					.setTooltip("Try to automatically detect claude-agent-acp")
 					.onClick(async () => {
 						const result = detectAgentPath("claude-code-acp");
 						if (result.path) {
@@ -795,7 +795,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								this.plugin.settings.claude.command = result.path;
 								await this.plugin.saveSettings();
 								this.display();
-								new Notice(`claude-code-acp found: ${result.path}`, 3000);
+								new Notice(`claude-agent-acp found: ${result.path}`, 3000);
 							} else {
 								new Notice(
 									`Detected but not working: ${validation.error}`,
@@ -804,7 +804,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							}
 						} else {
 							new Notice(
-								"claude-code-acp not found. Install with: npm install -g @zed-industries/claude-code-acp",
+								"claude-agent-acp not found. Install with: npm install -g @zed-industries/claude-agent-acp",
 								5000,
 							);
 						}

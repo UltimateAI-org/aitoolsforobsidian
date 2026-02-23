@@ -925,7 +925,7 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 	private getCommandNameForAgent(agentId: string): string | null {
 		switch (agentId) {
 			case "claude-code-acp":
-				return "claude-code-acp";
+				return "claude-agent-acp";
 			case "codex-acp":
 				return "codex-acp";
 			case "gemini-cli":
@@ -1127,8 +1127,8 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 	): string {
 		// Build helpful suggestion based on the command
 		const installCommands: Record<string, string> = {
-			"claude-code-acp":
-				"npm install -g @zed-industries/claude-code-acp",
+			"claude-agent-acp":
+				"npm install -g @zed-industries/claude-agent-acp",
 			"codex-acp": "npm install -g @zed-industries/codex-acp",
 			gemini: "npm install -g @google/gemini-cli",
 		};

@@ -39,9 +39,9 @@ export class OnboardingModal extends Modal {
 	private readonly agents: AgentOption[] = [
 		{
 			id: "claude-code-acp",
-			name: "Claude Code",
+			name: "Claude Agent",
 			provider: "Anthropic",
-			package: "@zed-industries/claude-code-acp",
+			package: "@zed-industries/claude-agent-acp",
 			description: "Recommended — full tool support",
 		},
 		{
@@ -601,9 +601,9 @@ export class OnboardingModal extends Modal {
 					// Show success message
 					this.terminalOutputEl!.appendText("\n\n✓ Installation completed successfully!\n");
 
-					// Save settings
+					// Save settings (await so path is persisted before session creation)
 					this.installErrorMessage = "";
-					void this.saveSettings();
+					await this.saveSettings();
 
 					// Change install button to "Continue" and enable it
 					installBtn.setButtonText("Continue →");
