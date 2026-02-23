@@ -588,13 +588,48 @@ async function handleSendError(
 	authMethods: AuthenticationMethod[],
 	agentClient: IAgentClient,
 ): Promise<SendPromptResult> {
-	// Check for "empty response text" error - ignore silently
+	// Check for "empty response text" error — auto-retry once, then show clear message
 	if (isEmptyResponseError(error)) {
-		return {
-			success: true,
-			displayContent,
-			agentContent,
-		};
+		console.warn("[AgentClient] Empty response from agent, retrying...");
+		try {
+			await agentClient.sendPrompt(sessionId, agentContent);
+			return {
+				success: true,
+				displayContent,
+				agentContent,
+			};
+		} catch (retryError) {
+			// If retry also returns empty response, show user-friendly error
+			if (isEmptyResponseError(retryError)) {
+				return {
+					success: false,
+					displayContent,
+					agentContent,
+					error: {
+						id: crypto.randomUUID(),
+						category: "communication",
+						severity: "warning",
+						title: "Empty Response",
+						message:
+							"The agent returned an empty response. This is usually a transient issue.",
+						suggestion:
+							"Please try sending your message again.",
+						occurredAt: new Date(),
+						sessionId,
+						originalError: retryError,
+					},
+				};
+			}
+			// Different error on retry — fall through to normal error handling
+			return await handleSendError(
+				retryError,
+				sessionId,
+				agentContent,
+				displayContent,
+				authMethods,
+				agentClient,
+			);
+		}
 	}
 
 	// Check if this is a rate limit error
@@ -690,21 +725,33 @@ async function handleSendError(
 
 /**
  * Check if error is the "empty response text" error that should be ignored.
+ *
+ * Two known variants:
+ * 1. Claude Code ACP: code -32603, data.details contains "empty response text"
+ * 2. Gemini CLI ACP:  code 500, message contains "empty response text"
  */
 function isEmptyResponseError(error: unknown): boolean {
 	if (!error || typeof error !== "object") {
 		return false;
 	}
 
-	if (!("code" in error) || (error as { code: unknown }).code !== -32603) {
+	const errObj = error as Record<string, unknown>;
+
+	// Variant 2: code 500 + message contains "empty response text" (Gemini CLI)
+	if (
+		errObj.code === 500 &&
+		typeof errObj.message === "string" &&
+		errObj.message.includes("empty response text")
+	) {
+		return true;
+	}
+
+	// Variant 1: code -32603 + data.details contains "empty response text" (Claude Code)
+	if (errObj.code !== -32603 || !("data" in errObj)) {
 		return false;
 	}
 
-	if (!("data" in error)) {
-		return false;
-	}
-
-	const errorData = (error as { data: unknown }).data;
+	const errorData = errObj.data;
 
 	if (
 		errorData &&

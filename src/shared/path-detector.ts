@@ -1,4 +1,7 @@
 import { spawnSync } from "child_process";
+import { existsSync } from "fs";
+import { homedir } from "os";
+import { join } from "path";
 import { Platform } from "obsidian";
 
 /**
@@ -90,24 +93,35 @@ const COMMON_NODE_PATHS: Record<string, string[]> = {
 const COMMON_AGENT_PATHS: Record<string, string[]> = {
 	// macOS/Linux
 	darwin: [
+		"/usr/local/bin/claude-agent-acp",
 		"/usr/local/bin/claude-code-acp",
 		"/usr/local/bin/codex-acp",
 		"/usr/local/bin/gemini",
+		"/opt/homebrew/bin/claude-agent-acp",
 		"/opt/homebrew/bin/claude-code-acp",
 	],
 	linux: [
+		"/usr/bin/claude-agent-acp",
 		"/usr/bin/claude-code-acp",
 		"/usr/bin/codex-acp",
 		"/usr/bin/gemini",
+		"/usr/local/bin/claude-agent-acp",
 		"/usr/local/bin/claude-code-acp",
 		"/usr/local/bin/codex-acp",
 		"/usr/local/bin/gemini",
+		`${homedir()}/.npm-global/bin/claude-agent-acp`,
+		`${homedir()}/.npm-global/bin/claude-code-acp`,
+		`${homedir()}/.npm-global/bin/codex-acp`,
+		`${homedir()}/.npm-global/bin/gemini`,
 	],
-	// Windows
+	// Windows — use process.env.APPDATA for the actual user path
 	win32: [
-		"C:\\Users\\%USERNAME%\\AppData\\Roaming\\npm\\claude-code-acp.cmd",
-		"C:\\Users\\%USERNAME%\\AppData\\Roaming\\npm\\codex-acp.cmd",
-		"C:\\Users\\%USERNAME%\\AppData\\Roaming\\npm\\gemini.cmd",
+		...(process.env.APPDATA ? [
+			join(process.env.APPDATA, "npm", "claude-agent-acp.cmd"),
+			join(process.env.APPDATA, "npm", "claude-code-acp.cmd"),
+			join(process.env.APPDATA, "npm", "codex-acp.cmd"),
+			join(process.env.APPDATA, "npm", "gemini.cmd"),
+		] : []),
 	],
 };
 
@@ -161,7 +175,7 @@ export function detectAgentPath(agentId: string): PathDetectionResult {
 
 	switch (agentId) {
 		case "claude-code-acp":
-			executableName = Platform.isWin ? "claude-code-acp.cmd" : "claude-code-acp";
+			executableName = Platform.isWin ? "claude-agent-acp.cmd" : "claude-agent-acp";
 			break;
 		case "codex-acp":
 			executableName = Platform.isWin ? "codex-acp.cmd" : "codex-acp";
@@ -174,23 +188,32 @@ export function detectAgentPath(agentId: string): PathDetectionResult {
 			return { path: null, wasAutoDetected: false };
 	}
 
-	try {
-		const result = spawnSync(command, [executableName], {
-			encoding: "utf-8",
-			timeout: 5000,
-		});
+	// Try primary executable name, then legacy fallback for claude-code-acp → claude-agent-acp rename
+	const namesToTry = [executableName];
+	if (agentId === "claude-code-acp") {
+		const legacyName = Platform.isWin ? "claude-code-acp.cmd" : "claude-code-acp";
+		namesToTry.push(legacyName);
+	}
 
-		if (result.status === 0 && result.stdout) {
-			const lines = result.stdout.trim().split(/\r?\n/);
-			for (const line of lines) {
-				const trimmed = line.trim();
-				if (trimmed && trimmed.length > 0) {
-					return { path: trimmed, wasAutoDetected: true };
+	for (const name of namesToTry) {
+		try {
+			const result = spawnSync(command, [name], {
+				encoding: "utf-8",
+				timeout: 5000,
+			});
+
+			if (result.status === 0 && result.stdout) {
+				const lines = result.stdout.trim().split(/\r?\n/);
+				for (const line of lines) {
+					const trimmed = line.trim();
+					if (trimmed && trimmed.length > 0) {
+						return { path: trimmed, wasAutoDetected: true };
+					}
 				}
 			}
+		} catch {
+			// Continue to next name or fallback paths
 		}
-	} catch {
-		// Continue to fallback paths
 	}
 
 	// Try common installation paths
@@ -209,16 +232,9 @@ export function detectAgentPath(agentId: string): PathDetectionResult {
 /**
  * Check if a file exists at the given path
  */
-function pathExists(path: string): boolean {
+function pathExists(filePath: string): boolean {
 	try {
-		const result = spawnSync(Platform.isWin ? "cmd.exe" : "test", [
-			Platform.isWin ? "/c" : "-e",
-			path,
-		], {
-			encoding: "utf-8",
-			timeout: 1000,
-		});
-		return result.status === 0;
+		return existsSync(filePath);
 	} catch {
 		return false;
 	}
@@ -275,7 +291,7 @@ export function validatePath(path: string): { valid: boolean; error?: string } {
 export function getAgentInstallInstructions(agentId: string): string {
 	switch (agentId) {
 		case "claude-code-acp":
-			return "npm install -g @zed-industries/claude-code-acp";
+			return "npm install -g @zed-industries/claude-agent-acp";
 		case "codex-acp":
 			return "npm install -g @zed-industries/codex-acp";
 		case "gemini-cli":

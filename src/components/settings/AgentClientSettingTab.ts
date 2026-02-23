@@ -106,20 +106,6 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					}),
 			);
 
-		new Setting(containerEl)
-			.setName("Auto-install missing agents")
-			.setDesc(
-				"Automatically install Claude Code, Gemini CLI, and Codex when they're not found. Requires Node.js and npm.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.autoInstallAgents)
-					.onChange(async (value) => {
-						this.plugin.settings.autoInstallAgents = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-
 		// ─────────────────────────────────────────────────────────────────────
 		// API Configuration (global for all agents)
 		// ─────────────────────────────────────────────────────────────────────
@@ -652,22 +638,18 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			id,
 			label: `${displayName} (${id})`,
 		});
+		const claudeName =
+			this.plugin.settings.claude.displayName ||
+			this.plugin.settings.claude.id;
 		const options: { id: string; label: string }[] = [
-			toOption(
-				this.plugin.settings.claude.id,
-				this.plugin.settings.claude.displayName ||
-					this.plugin.settings.claude.id,
-			),
-			toOption(
-				this.plugin.settings.codex.id,
-				this.plugin.settings.codex.displayName ||
-					this.plugin.settings.codex.id,
-			),
-			toOption(
-				this.plugin.settings.gemini.id,
-				this.plugin.settings.gemini.displayName ||
-					this.plugin.settings.gemini.id,
-			),
+			{
+				id: this.plugin.settings.claude.id,
+				label: `${claudeName} (${this.plugin.settings.claude.id}) - Recommended`,
+			},
+			{
+				id: this.plugin.settings.gemini.id,
+				label: `${this.plugin.settings.gemini.displayName || this.plugin.settings.gemini.id} (${this.plugin.settings.gemini.id}) - Experimental`,
+			},
 		];
 		for (const agent of this.plugin.settings.customAgents) {
 			if (agent.id && agent.id.length > 0) {
@@ -693,11 +675,12 @@ export class AgentClientSettingTab extends PluginSettingTab {
 
 		new Setting(sectionEl)
 			.setName(gemini.displayName || "Gemini CLI")
+			.setDesc("Experimental — limited tool support through ACP mode.")
 			.setHeading();
 
 		new Setting(sectionEl)
 			.setName("Path")
-			.setDesc("Absolute path to the Gemini CLI executable.")
+			.setDesc("Absolute path to the Gemini CLI executable. Install via: npm install -g @google/gemini-cli")
 			.addText((text) => {
 				text.setPlaceholder("Absolute path to gemini")
 					.setValue(gemini.command)
@@ -777,16 +760,16 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		const claude = this.plugin.settings.claude;
 
 		new Setting(sectionEl)
-			.setName(claude.displayName || "Claude Code (ACP)")
+			.setName(claude.displayName || "Claude Agent (ACP)")
 			.setHeading();
 
 		new Setting(sectionEl)
 			.setName("Path")
 			.setDesc(
-				"Absolute path to the claude-code-acp executable.",
+				"Absolute path to the claude-agent-acp executable. Install via: npm install -g @zed-industries/claude-agent-acp",
 			)
 			.addText((text) => {
-				text.setPlaceholder("Absolute path to claude-code-acp")
+				text.setPlaceholder("Absolute path to claude-agent-acp")
 					.setValue(claude.command)
 					.onChange(async (value) => {
 						const trimmed = value.trim();
@@ -803,7 +786,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			.addButton((button) =>
 				button
 					.setButtonText("Auto-detect")
-					.setTooltip("Try to automatically detect claude-code-acp")
+					.setTooltip("Try to automatically detect claude-agent-acp")
 					.onClick(async () => {
 						const result = detectAgentPath("claude-code-acp");
 						if (result.path) {
@@ -812,7 +795,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								this.plugin.settings.claude.command = result.path;
 								await this.plugin.saveSettings();
 								this.display();
-								new Notice(`claude-code-acp found: ${result.path}`, 3000);
+								new Notice(`claude-agent-acp found: ${result.path}`, 3000);
 							} else {
 								new Notice(
 									`Detected but not working: ${validation.error}`,
@@ -821,7 +804,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							}
 						} else {
 							new Notice(
-								"claude-code-acp not found. Install with: npm install -g @zed-industries/claude-code-acp",
+								"claude-agent-acp not found. Install with: npm install -g @zed-industries/claude-agent-acp",
 								5000,
 							);
 						}
@@ -865,11 +848,12 @@ export class AgentClientSettingTab extends PluginSettingTab {
 
 		new Setting(sectionEl)
 			.setName(codex.displayName || "Codex")
+			.setDesc("In development — not yet available for general use.")
 			.setHeading();
 
 		new Setting(sectionEl)
 			.setName("Path")
-			.setDesc("Absolute path to the codex-acp executable.")
+			.setDesc("Absolute path to the codex-acp executable. Install via: npm install -g @zed-industries/codex-acp")
 			.addText((text) => {
 				text.setPlaceholder("Absolute path to codex-acp")
 					.setValue(codex.command)

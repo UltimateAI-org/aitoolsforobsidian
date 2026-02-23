@@ -175,8 +175,8 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 
 		// Check if command is configured
 		if (!config.command || config.command.trim().length === 0) {
-			// For known agents with auto-install enabled, emit error with install option
-			if (isKnownAgent(config.id) && this.plugin.settings.autoInstallAgents) {
+			// For known agents, emit error with install option
+			if (isKnownAgent(config.id)) {
 				const agentError: AgentError = {
 					id: crypto.randomUUID(),
 					category: "configuration",
@@ -385,10 +385,8 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 				const commandName =
 					command.split("/").pop()?.split("\\").pop() || command;
 
-				// Check if this is a known agent that can be auto-installed
-				const canAutoInstall =
-					isKnownAgent(config.id) &&
-					this.plugin.settings.autoInstallAgents;
+				// Check if this is a known agent that can be installed
+				const canAutoInstall = isKnownAgent(config.id);
 
 				const agentError: AgentError = {
 					id: crypto.randomUUID(),
@@ -927,7 +925,7 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 	private getCommandNameForAgent(agentId: string): string | null {
 		switch (agentId) {
 			case "claude-code-acp":
-				return "claude-code-acp";
+				return "claude-agent-acp";
 			case "codex-acp":
 				return "codex-acp";
 			case "gemini-cli":
@@ -949,7 +947,7 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 		} else if (agentId === settings.gemini.id) {
 			settings.gemini.command = command;
 		}
-		void this.plugin.saveSettings();
+		void this.plugin.saveSettingsAndNotify({ ...settings });
 	}
 
 	/**
@@ -1129,8 +1127,8 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 	): string {
 		// Build helpful suggestion based on the command
 		const installCommands: Record<string, string> = {
-			"claude-code-acp":
-				"npm install -g @zed-industries/claude-code-acp",
+			"claude-agent-acp":
+				"npm install -g @zed-industries/claude-agent-acp",
 			"codex-acp": "npm install -g @zed-industries/codex-acp",
 			gemini: "npm install -g @google/gemini-cli",
 		};

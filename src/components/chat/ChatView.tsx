@@ -587,10 +587,15 @@ function ChatComponent({
 	// Effects - Session Lifecycle
 	// ============================================================
 	// Initialize session on mount or when agent changes
+	// Skip during onboarding — the modal will trigger activateView() after saving settings
 	useEffect(() => {
+		if (!settings.hasCompletedOnboarding) {
+			logger.log("[Debug] Skipping session creation — onboarding in progress");
+			return;
+		}
 		logger.log("[Debug] Starting connection setup via useAgentSession...");
 		void agentSession.createSession();
-	}, [session.agentId, agentSession.createSession]);
+	}, [session.agentId, agentSession.createSession, settings.hasCompletedOnboarding]);
 
 	// Reload session when critical settings change (apiKey, baseUrl, model)
 	useEffect(() => {

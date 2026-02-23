@@ -39,17 +39,17 @@ export class OnboardingModal extends Modal {
 	private readonly agents: AgentOption[] = [
 		{
 			id: "claude-code-acp",
-			name: "Claude Code",
+			name: "Claude Agent",
 			provider: "Anthropic",
-			package: "@zed-industries/claude-code-acp",
-			description: "Popular for general coding tasks",
+			package: "@zed-industries/claude-agent-acp",
+			description: "Recommended — full tool support",
 		},
 		{
 			id: "gemini-cli",
 			name: "Gemini CLI",
 			provider: "Google",
 			package: "@google/gemini-cli",
-			description: "Fast and versatile AI assistant",
+			description: "Experimental — limited tool support",
 		},
 		// Note: Codex/OpenCode is currently in development
 		// {
@@ -134,8 +134,6 @@ export class OnboardingModal extends Modal {
 		// Normalize URL: trim and remove trailing slash
 		const normalizedUrl = this.baseUrl.trim().replace(/\/$/, "");
 		settings.baseUrl = normalizedUrl || "https://chat.obsidianaitools.com";
-		settings.autoInstallAgents = true;
-
 		// Save detected Node.js path so user doesn't have to configure it manually
 		if (this.detectedNodePath) {
 			settings.nodePath = this.detectedNodePath;
@@ -145,20 +143,30 @@ export class OnboardingModal extends Modal {
 		if (this.selectedAgent) {
 			settings.activeAgentId = this.selectedAgent.id;
 
-			// Auto-detect the installed agent's full path with retry logic
-			// On Windows, there can be a delay after npm install before the .cmd file is accessible
-			let detectedPath = detectAgentPath(this.selectedAgent.id);
-			let retries = 0;
-			const maxRetries = 3;
+			// Only trust agent path detection if Node.js is available.
+			// Stale .cmd stubs persist in %APPDATA%\npm after Node.js is uninstalled.
+			const nodeAvailable = detectNodePath();
+			let agentPath = this.getAgentBinaryName(this.selectedAgent.id);
 
-			while (!detectedPath.path && retries < maxRetries) {
-				console.warn(`[Onboarding] Path detection attempt ${retries + 1} failed, retrying in 1s...`);
-				await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
-				detectedPath = detectAgentPath(this.selectedAgent.id);
-				retries++;
+			if (nodeAvailable.path) {
+				// Auto-detect the installed agent's full path with retry logic
+				// On Windows, there can be a delay after npm install before the .cmd file is accessible
+				let detectedPath = detectAgentPath(this.selectedAgent.id);
+				let retries = 0;
+				const maxRetries = 3;
+
+				while (!detectedPath.path && retries < maxRetries) {
+					console.warn(`[Onboarding] Path detection attempt ${retries + 1} failed, retrying in 1s...`);
+					await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+					detectedPath = detectAgentPath(this.selectedAgent.id);
+					retries++;
+				}
+
+				agentPath = detectedPath.path || agentPath;
+				console.warn(`[Onboarding] Detected agent path: ${agentPath} (wasAutoDetected: ${detectedPath.wasAutoDetected})`);
+			} else {
+				console.warn(`[Onboarding] Node.js not available — saving bare binary name: ${agentPath}`);
 			}
-
-			const agentPath = detectedPath.path || this.selectedAgent.id; // Fallback to command name if not found
 
 			if (this.selectedAgent.id === "claude-code-acp") {
 				settings.claude.command = agentPath;
@@ -167,8 +175,6 @@ export class OnboardingModal extends Modal {
 			} else if (this.selectedAgent.id === "gemini-cli") {
 				settings.gemini.command = agentPath;
 			}
-
-			console.warn(`[Onboarding] Detected agent path: ${agentPath} (wasAutoDetected: ${detectedPath.wasAutoDetected})`);
 		}
 
 		// Mark onboarding as complete
@@ -225,10 +231,11 @@ export class OnboardingModal extends Modal {
 	}
 
 	private createAgentCard(parent: HTMLElement, agent: AgentOption) {
+		const isRecommended = agent.id === "claude-code-acp";
 		const card = parent.createDiv({
 			cls: `obsidianaitools-onboarding-card ${
 				this.selectedAgent?.id === agent.id ? "selected" : ""
-			}`,
+			} ${isRecommended ? "recommended" : ""}`,
 		});
 		card.onclick = () => {
 			this.selectedAgent = agent;
@@ -376,15 +383,66 @@ export class OnboardingModal extends Modal {
 				cls: "obsidianaitools-onboarding-error",
 			});
 
-			errorDiv.createEl("p", {
+			const errorHeader = errorDiv.createDiv({
+				cls: "obsidianaitools-onboarding-error-header-row",
+			});
+			errorHeader.createEl("p", {
 				text: "Installation Failed",
 				cls: "obsidianaitools-onboarding-error-header",
 			});
+			const dismissBtn = errorHeader.createEl("button", {
+				text: "×",
+				cls: "obsidianaitools-onboarding-error-dismiss",
+			});
+			dismissBtn.onclick = () => {
+				this.installErrorMessage = "";
+				errorDiv.remove();
+			};
 
-			// Check if it's a missing npm error
+			// Check error type
 			const isNpmMissing = this.installErrorMessage.toLowerCase().includes("node.js and npm");
+			const isPermissionError = this.installErrorMessage.includes("NPM_PERMISSION_ERROR");
 
-			if (isNpmMissing) {
+			if (isPermissionError) {
+				// Show npm global permissions fix for Linux users
+				const actionDiv = errorDiv.createDiv({
+					cls: "obsidianaitools-onboarding-error-action",
+				});
+
+				actionDiv.createEl("p", {
+					text: "npm does not have permission to install global packages. This is common on Linux when Node.js is installed via a system package manager.",
+					cls: "obsidianaitools-onboarding-error-action-text",
+				});
+
+				actionDiv.createEl("p", {
+					text: "To fix this, run these commands in your terminal:",
+					cls: "obsidianaitools-onboarding-error-action-header",
+				});
+
+				const commands = [
+					"mkdir -p ~/.npm-global",
+					"npm config set prefix '~/.npm-global'",
+					"echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc",
+					"source ~/.bashrc",
+				];
+
+				const codeBlock = actionDiv.createEl("pre", {
+					cls: "obsidianaitools-onboarding-error-codeblock",
+				});
+				codeBlock.createEl("code", {
+					text: commands.join("\n"),
+				});
+
+				actionDiv.createEl("p", {
+					text: "If you use zsh or fish, update your shell config file instead of ~/.bashrc.",
+					cls: "obsidianaitools-onboarding-error-action-text",
+				});
+
+				actionDiv.createEl("p", {
+					text: "Then click 'Retry Installation' below.",
+					cls: "obsidianaitools-onboarding-error-alternative",
+				});
+			} else if (isNpmMissing) {
 				// Show prominent installation instructions for missing npm
 				const actionDiv = errorDiv.createDiv({
 					cls: "obsidianaitools-onboarding-error-action",
@@ -405,14 +463,28 @@ export class OnboardingModal extends Modal {
 				});
 
 				const step1 = stepsList.createEl("li");
-				step1.createEl("strong").setText("Download Node.js: ");
-				const link = step1.createEl("a", {
-					text: "https://nodejs.org/en/download",
+				step1.createEl("strong").setText("Install Node.js ");
+				if (Platform.isWin) {
+					step1.appendText("via terminal: ");
+					step1.createEl("code", { text: "winget install OpenJS.NodeJS.LTS" });
+				} else if (Platform.isMacOS) {
+					step1.appendText("via terminal: ");
+					step1.createEl("code", { text: "brew install node" });
+				} else {
+					step1.appendText("via terminal: ");
+					step1.createEl("code", { text: "sudo apt install nodejs npm" });
+					step1.appendText(" (Debian/Ubuntu) or ");
+					step1.createEl("code", { text: "sudo pacman -S nodejs npm" });
+					step1.appendText(" (Arch)");
+				}
+
+				const step1alt = stepsList.createEl("li");
+				step1alt.appendText("Or download from ");
+				const link = step1alt.createEl("a", {
+					text: "nodejs.org",
 					href: "https://nodejs.org/en/download",
 				});
 				link.setAttribute("target", "_blank");
-
-				stepsList.createEl("li", { text: "Install Node.js (it includes npm automatically)" });
 
 				const restartLi = stepsList.createEl("li");
 				restartLi.createEl("strong").setText("Restart your computer");
@@ -563,9 +635,9 @@ export class OnboardingModal extends Modal {
 					// Show success message
 					this.terminalOutputEl!.appendText("\n\n✓ Installation completed successfully!\n");
 
-					// Save settings
+					// Save settings (await so path is persisted before session creation)
 					this.installErrorMessage = "";
-					void this.saveSettings();
+					await this.saveSettings();
 
 					// Change install button to "Continue" and enable it
 					installBtn.setButtonText("Continue →");
@@ -599,24 +671,73 @@ export class OnboardingModal extends Modal {
 						cls: "obsidianaitools-onboarding-error-header",
 					});
 
-				// Check if it's a Node.js missing error with URL
+				// Check error type
 				const isNodeMissing = this.installErrorMessage.includes("https://nodejs.org/en/download");
+				const isPermError = this.installErrorMessage.includes("NPM_PERMISSION_ERROR");
 
-				if (isNodeMissing) {
-					// Split message to make URL clickable
-					const parts = this.installErrorMessage.split("https://nodejs.org/en/download");
-					const messagePara = errorDiv.createEl("p", {
+				if (isPermError) {
+					// Show npm global permissions fix
+					errorDiv.createEl("p", {
+						text: "npm does not have permission to install global packages. This is common on Linux when Node.js is installed via a system package manager.",
 						cls: "obsidianaitools-onboarding-error-message",
 					});
-					messagePara.appendText(parts[0]);
-					const link = messagePara.createEl("a", {
-						text: "https://nodejs.org/en/download",
+
+					const fixDiv = errorDiv.createDiv({
+						cls: "obsidianaitools-onboarding-error-help",
+					});
+					fixDiv.createEl("p", { text: "Run these commands in your terminal to fix this:" });
+
+					const commands = [
+						"mkdir -p ~/.npm-global",
+						"npm config set prefix '~/.npm-global'",
+						"echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc",
+						"source ~/.bashrc",
+					];
+
+					const codeBlock = fixDiv.createEl("pre", {
+						cls: "obsidianaitools-onboarding-error-codeblock",
+					});
+					codeBlock.createEl("code", {
+						text: commands.join("\n"),
+					});
+
+					fixDiv.createEl("p", { text: "If you use zsh or fish, update your shell config file instead of ~/.bashrc." });
+					fixDiv.createEl("p", { text: "Then click 'Retry Installation' below." });
+				} else if (isNodeMissing) {
+					// Show platform-specific install command
+					errorDiv.createEl("p", {
+						text: "Node.js is required but not installed on your system.",
+						cls: "obsidianaitools-onboarding-error-message",
+					});
+
+					const installHint = errorDiv.createEl("p", {
+						cls: "obsidianaitools-onboarding-error-message",
+					});
+					installHint.createEl("strong").setText("Quick install: ");
+					if (Platform.isWin) {
+						installHint.createEl("code", { text: "winget install OpenJS.NodeJS.LTS" });
+					} else if (Platform.isMacOS) {
+						installHint.createEl("code", { text: "brew install node" });
+					} else {
+						installHint.createEl("code", { text: "sudo apt install nodejs npm" });
+						installHint.appendText(" or ");
+						installHint.createEl("code", { text: "sudo pacman -S nodejs npm" });
+					}
+
+					const dlPara = errorDiv.createEl("p", {
+						cls: "obsidianaitools-onboarding-error-message",
+					});
+					dlPara.appendText("Or download from ");
+					const dlLink = dlPara.createEl("a", {
+						text: "nodejs.org",
 						href: "https://nodejs.org/en/download",
 					});
-					link.setAttribute("target", "_blank");
-					if (parts[1]) {
-						messagePara.appendText(parts[1]);
-					}
+					dlLink.setAttribute("target", "_blank");
+
+					errorDiv.createEl("p", {
+						text: "After installing, restart Obsidian and click 'Retry Installation'.",
+						cls: "obsidianaitools-onboarding-error-message",
+					});
 				} else {
 					// Show plain text for other errors
 					errorDiv.createEl("p", {
@@ -625,6 +746,7 @@ export class OnboardingModal extends Modal {
 					});
 				}
 
+				if (!isPermError) {
 					const helpDiv = errorDiv.createDiv({
 						cls: "obsidianaitools-onboarding-error-help",
 					});
@@ -642,6 +764,7 @@ export class OnboardingModal extends Modal {
 							cls: "obsidianaitools-onboarding-error-command",
 						});
 					}
+				}
 
 					// Insert error div before terminal
 					terminalContainer.parentElement?.insertBefore(errorDiv, terminalContainer);
@@ -734,6 +857,23 @@ export class OnboardingModal extends Modal {
 		}
 	}
 
+	/**
+	 * Get the actual binary/command name for an agent ID.
+	 * The internal ID (e.g. "claude-code-acp") differs from the binary name (e.g. "claude-agent-acp").
+	 */
+	private getAgentBinaryName(agentId: string): string {
+		switch (agentId) {
+			case "claude-code-acp":
+				return Platform.isWin ? "claude-agent-acp.cmd" : "claude-agent-acp";
+			case "codex-acp":
+				return Platform.isWin ? "codex-acp.cmd" : "codex-acp";
+			case "gemini-cli":
+				return Platform.isWin ? "gemini.cmd" : "gemini";
+			default:
+				return agentId;
+		}
+	}
+
 	private async installAgent(agent: AgentOption, onOutput?: (text: string) => void): Promise<{ success: boolean; error?: string }> {
 		const installCommand = getAgentInstallCommand(agent.id);
 		if (!installCommand) {
@@ -742,14 +882,10 @@ export class OnboardingModal extends Modal {
 			return { success: false, error };
 		}
 
-		// Check if agent is already installed
-		const alreadyInstalled = detectAgentPath(agent.id);
-		if (alreadyInstalled.path) {
-			console.warn(`[Onboarding] ${agent.name} is already installed at: ${alreadyInstalled.path}`);
-			onOutput?.(`✓ ${agent.name} is already installed at: ${alreadyInstalled.path}\n\nSkipping installation...\n`);
-			return { success: true };
-		}
-
+		// Always run npm install -g even if the agent binary already exists.
+		// On Windows, stale .cmd stubs and broken node_modules can persist after
+		// Node.js reinstalls. npm install -g is fast for already-installed packages
+		// and repairs broken installs.
 		const packageName = installCommand.replace("npm install -g ", "");
 		let nodePath = this.plugin.settings.nodePath;
 
@@ -874,8 +1010,10 @@ export class OnboardingModal extends Modal {
 
 				// Check if agent was actually installed, regardless of exit code
 				// npm can return non-zero exit codes even on successful installs if there are warnings
+				// Also verify Node.js exists — stale .cmd stubs from a previous install can fool existsSync
 				const installed = detectAgentPath(agent.id);
-				const wasInstalled = installed.path !== null;
+				const nodeAvailable = detectNodePath();
+				const wasInstalled = installed.path !== null && nodeAvailable.path !== null;
 
 				if (code === 0 || wasInstalled) {
 					if (wasInstalled) {
@@ -892,7 +1030,7 @@ export class OnboardingModal extends Modal {
 					if (outputLower.includes("npm") && (outputLower.includes("not recognized") || outputLower.includes("command not found") || outputLower.includes("not found"))) {
 						errorMsg = "Node.js and npm are not installed or not in your system PATH.\n\nPlease install Node.js from: https://nodejs.org/en/download\n\nAfter installing, restart Obsidian and try again.";
 					} else if (outputLower.includes("eacces") || outputLower.includes("permission denied")) {
-						errorMsg = "Permission denied. Try running Obsidian as administrator, or install the agent manually:\n\nnpm install -g " + packageName;
+						errorMsg = "NPM_PERMISSION_ERROR: Permission denied when installing globally.";
 					} else if (outputLower.includes("enotfound") || outputLower.includes("network")) {
 						errorMsg = "Network error. Please check your internet connection and try again.";
 					} else {

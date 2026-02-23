@@ -1881,6 +1881,11 @@ If your plugin does not need CSS, delete this file.
 	transition: all 0.2s ease;
 }
 
+.obsidianaitools-onboarding-card.recommended {
+	border-color: #e08a2e;
+	border-width: 2px;
+}
+
 .obsidianaitools-onboarding-card:hover {
 	border-color: var(--interactive-accent);
 	background: var(--background-secondary-alt);
@@ -2105,11 +2110,31 @@ If your plugin does not need CSS, delete this file.
 	background-color: var(--background-primary-alt);
 }
 
+.obsidianaitools-onboarding-error-header-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+}
+
 .obsidianaitools-onboarding-error-header {
 	margin: 0 0 16px 0 !important;
 	color: var(--color-red) !important;
 	font-size: 18px;
 	font-weight: 600;
+}
+
+.obsidianaitools-onboarding-error-dismiss {
+	background: none;
+	border: none;
+	color: var(--text-muted);
+	font-size: 20px;
+	cursor: pointer;
+	padding: 0 4px;
+	line-height: 1;
+}
+
+.obsidianaitools-onboarding-error-dismiss:hover {
+	color: var(--text-normal);
 }
 
 .obsidianaitools-onboarding-error-message {

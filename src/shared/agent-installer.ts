@@ -20,7 +20,7 @@ export interface InstallResult {
 export function getAgentInstallCommand(agentId: string): string {
 	switch (agentId) {
 		case "claude-code-acp":
-			return "npm install -g @zed-industries/claude-code-acp";
+			return "npm install -g @zed-industries/claude-agent-acp";
 		case "codex-acp":
 			return "npm install -g @zed-industries/codex-acp";
 		case "gemini-cli":
@@ -36,7 +36,7 @@ export function getAgentInstallCommand(agentId: string): string {
 export function getAgentDisplayName(agentId: string): string {
 	switch (agentId) {
 		case "claude-code-acp":
-			return "Claude Code";
+			return "Claude Agent";
 		case "codex-acp":
 			return "Codex";
 		case "gemini-cli":
@@ -125,7 +125,7 @@ export function installAgent(
 function getAgentNpmPackage(agentId: string): string {
 	switch (agentId) {
 		case "claude-code-acp":
-			return "@zed-industries/claude-code-acp";
+			return "@zed-industries/claude-agent-acp";
 		case "codex-acp":
 			return "@zed-industries/codex-acp";
 		case "gemini-cli":
