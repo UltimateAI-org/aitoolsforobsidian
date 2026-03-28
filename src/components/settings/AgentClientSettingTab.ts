@@ -766,7 +766,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		new Setting(sectionEl)
 			.setName("Path")
 			.setDesc(
-				"Absolute path to the claude-agent-acp executable. Install via: npm install -g @zed-industries/claude-agent-acp",
+				"Absolute path to the claude-agent-acp executable. Install via: npm install -g @agentclientprotocol/claude-agent-acp",
 			)
 			.addText((text) => {
 				text.setPlaceholder("Absolute path to claude-agent-acp")
@@ -804,7 +804,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							}
 						} else {
 							new Notice(
-								"claude-agent-acp not found. Install with: npm install -g @zed-industries/claude-agent-acp",
+								"claude-agent-acp not found. Install with: npm install -g @agentclientprotocol/claude-agent-acp",
 								5000,
 							);
 						}

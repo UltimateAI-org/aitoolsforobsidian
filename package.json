@@ -1,6 +1,6 @@
 {
   "name": "aitoolsforobsidian",
-  "version": "0.8.8",
+  "version": "0.8.9",
   "description": "Use AI coding agents directly inside Obsidian",
   "main": "main.js",
   "scripts": {
@@ -36,7 +36,7 @@
     "vitepress": "^1.6.4"
   },
   "dependencies": {
-    "@agentclientprotocol/sdk": "^0.12.0",
+    "@agentclientprotocol/sdk": "^0.17.1",
     "@codemirror/state": "6.5.0",
     "@codemirror/view": "^6.35.0",
     "diff": "^8.0.2",

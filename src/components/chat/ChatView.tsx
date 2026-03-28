@@ -943,7 +943,7 @@ export class ChatView extends ItemView {
 	}
 
 	getDisplayText() {
-		return "Agent client";
+		return "AI Tools";
 	}
 
 	getIcon() {

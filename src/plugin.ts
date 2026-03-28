@@ -183,7 +183,7 @@ export default class AgentClientPlugin extends Plugin {
 
 			const ribbonIconEl = this.addRibbonIcon(
 				"bot-message-square",
-				"AI tools",
+				"AI Tools",
 				(_evt: MouseEvent) => {
 					void this.activateView();
 				},
