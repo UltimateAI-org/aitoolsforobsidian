@@ -15,7 +15,8 @@
       "Bash(claude-code-acp:*)",
       "Bash(npm_package_version=0.7.3 node:*)",
       "Bash(git push)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(npm ls:*)"
     ]
   }
 }
