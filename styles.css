@@ -2223,3 +2223,17 @@ If your plugin does not need CSS, delete this file.
 	font-size: 13px;
 	color: var(--text-accent);
 }
+
+.obsidianaitools-onboarding-error-codeblock {
+	margin: 4px 0 12px 0;
+	padding: 10px 14px;
+	background-color: var(--background-primary);
+	border-radius: 4px;
+	font-family: var(--font-monospace);
+	font-size: 13px;
+	color: var(--text-normal);
+	user-select: text;
+	cursor: text;
+	white-space: pre;
+	overflow-x: auto;
+}

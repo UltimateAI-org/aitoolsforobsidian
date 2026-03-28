@@ -1,7 +1,7 @@
 import { Modal, App, ButtonComponent, Setting } from "obsidian";
 import type AgentClientPlugin from "../plugin";
 import { getAgentInstallCommand } from "../shared/agent-installer";
-import { detectWsl, detectNodePath, detectAgentPath } from "../shared/path-detector";
+import { detectWsl, detectNodePath, detectAgentPath, detectSandboxEnvironment } from "../shared/path-detector";
 import { spawn } from "child_process";
 import { Platform } from "obsidian";
 import { getEnhancedWindowsEnv } from "../shared/windows-env";
@@ -41,7 +41,7 @@ export class OnboardingModal extends Modal {
 			id: "claude-code-acp",
 			name: "Claude Agent",
 			provider: "Anthropic",
-			package: "@zed-industries/claude-agent-acp",
+			package: "@agentclientprotocol/claude-agent-acp",
 			description: "Recommended — full tool support",
 		},
 		{
@@ -255,9 +255,14 @@ export class OnboardingModal extends Modal {
 		// Enter API key
 		this.stepContainer.createEl("h3", { text: "API key" });
 
-		this.stepContainer.createEl("p", {
-			text: "Enter your API key from chat.obsidianaitools.com:",
+		const apiKeyIntro = this.stepContainer.createEl("p");
+		apiKeyIntro.appendText("Enter your API key from ");
+		const chatLink = apiKeyIntro.createEl("a", {
+			text: "chat.obsidianaitools.com",
+			href: "https://chat.obsidianaitools.com",
 		});
+		chatLink.setAttribute("target", "_blank");
+		apiKeyIntro.appendText(":");
 
 		// API key input
 		new Setting(this.stepContainer)
@@ -286,16 +291,33 @@ export class OnboardingModal extends Modal {
 			cls: "obsidianaitools-onboarding-instructions-list",
 		});
 
-		instructionsList.createEl("li", { text: "Go to chat.obsidianaitools.com" });
+		const goToItem = instructionsList.createEl("li");
+		goToItem.appendText("Go to ");
+		const goToLink = goToItem.createEl("a", {
+			text: "chat.obsidianaitools.com",
+			href: "https://chat.obsidianaitools.com",
+		});
+		goToLink.setAttribute("target", "_blank");
 		instructionsList.createEl("li", { text: "Navigate to Settings > Account" });
 		instructionsList.createEl("li", { text: "Copy your API key" });
+
+		const noAccountP = this.stepContainer.createEl("p", {
+			cls: "obsidianaitools-onboarding-tip",
+		});
+		noAccountP.appendText("Don't have an account? Visit ");
+		const signupLink = noAccountP.createEl("a", {
+			text: "obsidianaitools.com",
+			href: "https://obsidianaitools.com",
+		});
+		signupLink.setAttribute("target", "_blank");
+		noAccountP.appendText(" to get started.");
 
 		this.stepContainer.createEl("p", {
 			text: "Tip: The API key is used by all agents via ANTHROPIC_AUTH_TOKEN, GEMINI_API_KEY, or OPENAI_API_KEY",
 			cls: "obsidianaitools-onboarding-tip",
 		});
 
-		this.addNavigation("Next: Base URL ←", "Back", false);
+		this.addNavigation("Next: Setup Agent ←", "Back", false);
 	}
 
 	private renderStep3() {
@@ -311,35 +333,126 @@ export class OnboardingModal extends Modal {
 			}
 		}
 
-		// Prerequisites note
-		const prereqDiv = this.stepContainer.createDiv({
-			cls: "obsidianaitools-onboarding-prerequisites",
-		});
+		// Warn if running inside a Flatpak or Snap sandbox — npm/node are inaccessible
+		const sandbox = detectSandboxEnvironment();
+		if (sandbox.isSandboxed) {
+			const sandboxDiv = this.stepContainer.createDiv({
+				cls: "obsidianaitools-onboarding-error",
+			});
 
-		prereqDiv.createEl("p", {
-			text: "Before installing, ensure you have:",
-			cls: "obsidianaitools-onboarding-prerequisites-header",
-		});
+			sandboxDiv.createEl("p", {
+				text: `Obsidian is running inside a ${sandbox.type === "flatpak" ? "Flatpak" : "Snap"} sandbox`,
+				cls: "obsidianaitools-onboarding-error-header",
+			});
 
-		const prereqList = prereqDiv.createEl("ul", {
-			cls: "obsidianaitools-onboarding-prerequisites-list",
-		});
+			sandboxDiv.createEl("p", {
+				text: "Sandboxed versions of Obsidian cannot access npm or Node.js from your host system. Automatic installation will not work.",
+				cls: "obsidianaitools-onboarding-error-action-text",
+			});
 
-		const nodePrereq = prereqList.createEl("li");
-		nodePrereq.setText("Node.js and npm installed (");
-		const nodeLink = nodePrereq.createEl("a", {
-			text: "https://nodejs.org/en/download",
-			href: "https://nodejs.org/en/download",
-		});
-		nodeLink.setAttribute("target", "_blank");
-		nodePrereq.appendText(")");
+			sandboxDiv.createEl("p", {
+				text: "Reinstall Obsidian using your distro's native method:",
+				cls: "obsidianaitools-onboarding-error-action-header",
+			});
 
-		if (Platform.isWin) {
-			prereqList.createEl("li", { text: "WSL installed (run: wsl --install)" });
-			const pathNote = prereqList.createEl("li");
-			pathNote.setText("After installing Node.js, ");
-			pathNote.createEl("strong").setText("restart your computer");
-			pathNote.appendText(" to ensure npm is in your system PATH");
+			const distroList = sandboxDiv.createEl("ul", {
+				cls: "obsidianaitools-onboarding-prerequisites-list",
+			});
+
+			const archItem = distroList.createEl("li");
+			archItem.createEl("strong").setText("Arch Linux: ");
+			archItem.createEl("code").setText("sudo pacman -S obsidian");
+
+			const debItem = distroList.createEl("li");
+			debItem.createEl("strong").setText("Debian / Ubuntu / Mint: ");
+			debItem.appendText("download the ");
+			debItem.createEl("code").setText(".deb");
+			debItem.appendText(" from ");
+			const debLink = debItem.createEl("a", {
+				text: "obsidian.md/download",
+				href: "https://obsidian.md/download",
+			});
+			debLink.setAttribute("target", "_blank");
+			debItem.appendText(" — the site may default to AppImage, scroll down to find the .deb");
+
+			const fedoraItem = distroList.createEl("li");
+			fedoraItem.createEl("strong").setText("Fedora / other: ");
+			fedoraItem.appendText("download the ");
+			fedoraItem.createEl("code").setText(".AppImage");
+			fedoraItem.appendText(" from ");
+			const fedoraLink = fedoraItem.createEl("a", {
+				text: "obsidian.md/download",
+				href: "https://obsidian.md/download",
+			});
+			fedoraLink.setAttribute("target", "_blank");
+		}
+
+		if (this.detectedNodePath) {
+			// Node.js already found — no need to show install instructions
+			const nodeFoundDiv = this.stepContainer.createDiv({
+				cls: "obsidianaitools-onboarding-prerequisites",
+			});
+			const nodeFoundMsg = nodeFoundDiv.createEl("p", {
+				cls: "obsidianaitools-onboarding-prerequisites-header",
+			});
+			nodeFoundMsg.createEl("strong").setText("✓ Node.js detected: ");
+			nodeFoundMsg.appendText(this.detectedNodePath);
+		} else {
+			// Prerequisites note
+			const prereqDiv = this.stepContainer.createDiv({
+				cls: "obsidianaitools-onboarding-prerequisites",
+			});
+
+			prereqDiv.createEl("p", {
+				text: "Before installing, ensure you have:",
+				cls: "obsidianaitools-onboarding-prerequisites-header",
+			});
+
+			const prereqList = prereqDiv.createEl("ul", {
+				cls: "obsidianaitools-onboarding-prerequisites-list",
+			});
+
+			const nodePrereq = prereqList.createEl("li");
+			nodePrereq.setText("Node.js and npm installed (");
+			const nodeLink = nodePrereq.createEl("a", {
+				text: "https://nodejs.org/en/download",
+				href: "https://nodejs.org/en/download",
+			});
+			nodeLink.setAttribute("target", "_blank");
+			nodePrereq.appendText(")");
+
+			if (Platform.isWin) {
+				prereqList.createEl("li", { text: "WSL installed (run: wsl --install)" });
+				const pathNote = prereqList.createEl("li");
+				pathNote.setText("After installing Node.js, ");
+				pathNote.createEl("strong").setText("restart your computer");
+				pathNote.appendText(" to ensure npm is in your system PATH");
+			}
+
+			if (!Platform.isWin && !Platform.isMacOS) {
+				// Linux: show distro-specific Node.js install commands
+				const linuxNodeDiv = this.stepContainer.createDiv({
+					cls: "obsidianaitools-onboarding-prerequisites",
+				});
+
+				linuxNodeDiv.createEl("p", {
+					text: "Install Node.js for your distro:",
+					cls: "obsidianaitools-onboarding-prerequisites-header",
+				});
+
+				const nodeCommands: [string, string][] = [
+					["Arch Linux", "sudo pacman -S nodejs npm"],
+					["Debian / Ubuntu", "sudo apt install nodejs npm"],
+					["Fedora", "sudo dnf install nodejs npm"],
+				];
+
+				for (const [distro, cmd] of nodeCommands) {
+					const row = linuxNodeDiv.createDiv({ cls: "obsidianaitools-onboarding-wsl-note" });
+					row.createEl("p", { text: distro, cls: "obsidianaitools-onboarding-wsl-command" });
+					row.createEl("pre", { cls: "obsidianaitools-onboarding-error-codeblock" })
+						.createEl("code", { text: cmd });
+				}
+			}
 		}
 
 		// WSL note for Windows users

@@ -1,7 +1,7 @@
 {
 	"id": "obsidianaitools",
 	"name": "AI Tools",
-	"version": "0.8.8",
+	"version": "0.8.9",
 	"minAppVersion": "0.15.0",
 	"description": "Chat with AI agents via the Agent Client Protocol directly from your vault.",
 	"author": "UltimateAI-org",

@@ -1,5 +1,5 @@
 import { spawnSync } from "child_process";
-import { existsSync } from "fs";
+import { existsSync, readdirSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import { Platform } from "obsidian";
@@ -18,6 +18,34 @@ export interface PathDetectionResult {
 export interface WslDetectionResult {
 	isWsl: boolean;
 	distribution: string | null;
+}
+
+/**
+ * Result of sandbox environment detection
+ */
+export interface SandboxEnvironment {
+	isSandboxed: boolean;
+	type: "flatpak" | "snap" | null;
+}
+
+/**
+ * Detect if Obsidian is running inside a Flatpak or Snap sandbox on Linux.
+ * In these environments, npm and node from the host system are not accessible.
+ */
+export function detectSandboxEnvironment(): SandboxEnvironment {
+	if (Platform.isMacOS || Platform.isWin) {
+		return { isSandboxed: false, type: null };
+	}
+
+	if (process.env.FLATPAK_ID) {
+		return { isSandboxed: true, type: "flatpak" };
+	}
+
+	if (process.env.SNAP || process.env.SNAP_NAME) {
+		return { isSandboxed: true, type: "snap" };
+	}
+
+	return { isSandboxed: false, type: null };
 }
 
 /**
@@ -80,7 +108,9 @@ const COMMON_NODE_PATHS: Record<string, string[]> = {
 	// Linux
 	linux: [
 		"/usr/bin/node",
+		"/usr/bin/nodejs",
 		"/usr/local/bin/node",
+		"/usr/local/bin/nodejs",
 		"/snap/bin/node",
 	],
 	// Windows
@@ -131,26 +161,28 @@ const COMMON_AGENT_PATHS: Record<string, string[]> = {
 export function detectNodePath(): PathDetectionResult {
 	// Try using which/where command first
 	const command = Platform.isWin ? "where.exe" : "which";
-	const args = Platform.isWin ? ["node.exe"] : ["node"];
+	// On Debian/Ubuntu/Mint the binary may be "nodejs" instead of "node"
+	const namesToTry = Platform.isWin ? ["node.exe"] : ["node", "nodejs"];
 
-	try {
-		const result = spawnSync(command, args, {
-			encoding: "utf-8",
-			timeout: 5000,
-		});
+	for (const name of namesToTry) {
+		try {
+			const result = spawnSync(command, [name], {
+				encoding: "utf-8",
+				timeout: 5000,
+			});
 
-		if (result.status === 0 && result.stdout) {
-			const lines = result.stdout.trim().split(/\r?\n/);
-			// Take the first valid path
-			for (const line of lines) {
-				const trimmed = line.trim();
-				if (trimmed && trimmed.length > 0) {
-					return { path: trimmed, wasAutoDetected: true };
+			if (result.status === 0 && result.stdout) {
+				const lines = result.stdout.trim().split(/\r?\n/);
+				for (const line of lines) {
+					const trimmed = line.trim();
+					if (trimmed && trimmed.length > 0) {
+						return { path: trimmed, wasAutoDetected: true };
+					}
 				}
 			}
+		} catch {
+			// Try next name
 		}
-	} catch {
-		// Continue to fallback paths
 	}
 
 	// Try common installation paths
@@ -160,6 +192,42 @@ export function detectNodePath(): PathDetectionResult {
 	for (const path of commonPaths) {
 		if (pathExists(path)) {
 			return { path, wasAutoDetected: true };
+		}
+	}
+
+	// Try nvm — GUI apps don't inherit shell PATH so nvm node is invisible to `which`
+	if (!Platform.isWin) {
+		const nvmDir = process.env.NVM_DIR || join(homedir(), ".nvm");
+		const nvmVersionsDir = join(nvmDir, "versions", "node");
+		try {
+			if (existsSync(nvmVersionsDir)) {
+				// Check nvm default alias first
+				const defaultAliasPath = join(nvmDir, "alias", "default");
+				let defaultVersion: string | null = null;
+				try {
+					const { readFileSync } = require("fs") as typeof import("fs");
+					defaultVersion = readFileSync(defaultAliasPath, "utf-8").trim();
+				} catch {
+					// No default alias
+				}
+
+				const versions = readdirSync(nvmVersionsDir).filter(v => v.startsWith("v"));
+				// Prefer default alias version, otherwise pick latest
+				const sorted = versions.sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+				const preferred = defaultVersion
+					? sorted.find(v => v === defaultVersion || v.startsWith(defaultVersion!.replace(/^\^/, "")))
+					: null;
+				const candidates = preferred ? [preferred, ...sorted.filter(v => v !== preferred)] : sorted;
+
+				for (const version of candidates) {
+					const nodePath = join(nvmVersionsDir, version, "bin", "node");
+					if (existsSync(nodePath)) {
+						return { path: nodePath, wasAutoDetected: true };
+					}
+				}
+			}
+		} catch {
+			// nvm not available
 		}
 	}
 
@@ -291,7 +359,7 @@ export function validatePath(path: string): { valid: boolean; error?: string } {
 export function getAgentInstallInstructions(agentId: string): string {
 	switch (agentId) {
 		case "claude-code-acp":
-			return "npm install -g @zed-industries/claude-agent-acp";
+			return "npm install -g @agentclientprotocol/claude-agent-acp";
 		case "codex-acp":
 			return "npm install -g @zed-industries/codex-acp";
 		case "gemini-cli":

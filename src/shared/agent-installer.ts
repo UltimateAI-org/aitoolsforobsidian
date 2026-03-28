@@ -20,7 +20,7 @@ export interface InstallResult {
 export function getAgentInstallCommand(agentId: string): string {
 	switch (agentId) {
 		case "claude-code-acp":
-			return "npm install -g @zed-industries/claude-agent-acp";
+			return "npm install -g @agentclientprotocol/claude-agent-acp";
 		case "codex-acp":
 			return "npm install -g @zed-industries/codex-acp";
 		case "gemini-cli":
@@ -75,13 +75,15 @@ export function installAgent(
 		command = process.env.ComSpec || "cmd.exe";
 		args = ["/c", `${npmExec} install -g ${getAgentNpmPackage(agentId)}`];
 	} else {
-		// On macOS/Linux, use login shell to get proper PATH
+		// On macOS/Linux, use login shell to get proper PATH.
+		// Also source nvm.sh so GUI apps can find node/npm installed via nvm.
 		const shell = Platform.isMacOS ? "/bin/zsh" : "/bin/bash";
 		command = shell;
+		const nvmSource = `[ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh"`;
 		args = [
 			"-l",
 			"-c",
-			`${npmExec} install -g ${getAgentNpmPackage(agentId)}`,
+			`${nvmSource}; ${npmExec} install -g ${getAgentNpmPackage(agentId)}`,
 		];
 	}
 
@@ -125,7 +127,7 @@ export function installAgent(
 function getAgentNpmPackage(agentId: string): string {
 	switch (agentId) {
 		case "claude-code-acp":
-			return "@zed-industries/claude-agent-acp";
+			return "@agentclientprotocol/claude-agent-acp";
 		case "codex-acp":
 			return "@zed-industries/codex-acp";
 		case "gemini-cli":

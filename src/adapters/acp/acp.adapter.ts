@@ -1128,7 +1128,7 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 		// Build helpful suggestion based on the command
 		const installCommands: Record<string, string> = {
 			"claude-agent-acp":
-				"npm install -g @zed-industries/claude-agent-acp",
+				"npm install -g @agentclientprotocol/claude-agent-acp",
 			"codex-acp": "npm install -g @zed-industries/codex-acp",
 			gemini: "npm install -g @google/gemini-cli",
 		};

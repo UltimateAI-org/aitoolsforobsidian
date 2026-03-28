@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.9] - 2026-03-28
+
+### Added
+- Linux Flatpak/Snap sandbox detection — onboarding now shows a warning with distro-specific reinstall instructions when Obsidian is running in a sandboxed environment where npm/node are inaccessible
+- Linux distro-specific Node.js install commands in onboarding (Arch, Debian/Ubuntu/Mint, Fedora) when Node.js is not detected
+- nvm (Node Version Manager) detection — node path auto-detection now finds node installed via nvm, which GUI apps cannot see through normal PATH
+
+### Fixed
+- Node.js detection on Debian/Ubuntu/Mint now tries `nodejs` binary name in addition to `node` (apt installs it as `nodejs`)
+- npm install via nvm now works — installer sources `~/.nvm/nvm.sh` before running npm so nvm-managed npm is found
+- Onboarding no longer shows Node.js install instructions when Node.js is already detected — shows "✓ Node.js detected" instead
+- Migrated install commands from deprecated `@zed-industries/claude-agent-acp` to `@agentclientprotocol/claude-agent-acp`
+
+### Changed
+- View tab title changed from "Agent client" to "AI Tools"
+- Ribbon icon tooltip capitalised to "AI Tools"
+- Onboarding next button label changed from "Next: Base URL" to "Next: Setup Agent"
+- Onboarding code blocks are now selectable/copyable
+- Debian/Ubuntu/Mint install instructions clarify to use `.deb` over AppImage (obsidian.md defaults to AppImage on Linux)
+
 ## [0.8.3] - 2026-02-22
 
 ### Fixed
