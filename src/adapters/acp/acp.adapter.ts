@@ -1519,8 +1519,8 @@ To fix:
 	}
 
 	killTerminal(
-		params: acp.KillTerminalCommandRequest,
-	): Promise<acp.KillTerminalCommandResponse> {
+		params: acp.KillTerminalRequest,
+	): Promise<acp.KillTerminalResponse> {
 		const success = this.terminalManager.killTerminal(params.terminalId);
 		if (!success) {
 			throw new Error(`Terminal ${params.terminalId} not found`);
@@ -1567,7 +1567,7 @@ To fix:
 		try {
 			this.logger.log("[AcpAdapter] Listing sessions...");
 
-			const response = await this.connection.unstable_listSessions({
+			const response = await this.connection.listSessions({
 				cwd: cwd ?? null,
 				cursor: cursor ?? null,
 			});
