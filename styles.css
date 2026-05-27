@@ -520,6 +520,140 @@ If your plugin does not need CSS, delete this file.
 	gap: 8px;
 }
 
+/* Compatibility warning — untested agent version */
+.obsidianaitools-compat-warning {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 12px;
+	background-color: var(--background-modifier-warning, rgba(255,200,0,0.12));
+	border-bottom: 1px solid var(--background-modifier-border);
+	font-size: 12px;
+}
+
+.obsidianaitools-compat-warning-text {
+	flex: 1;
+	color: var(--text-warning, var(--text-muted));
+}
+
+.obsidianaitools-compat-warning-dismiss {
+	padding: 3px 8px;
+	font-size: 12px;
+	background: transparent;
+	color: var(--text-muted);
+	border-radius: 4px;
+	cursor: pointer;
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+.obsidianaitools-compat-warning-dismiss:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+/* Agent update banner — shows under the header when active agent has a
+   newer npm version available. */
+.obsidianaitools-agent-update-banner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px 12px;
+	margin: 4px 8px 8px;
+	background-color: var(--background-modifier-hover);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	font-size: 13px;
+}
+
+.obsidianaitools-agent-update-banner-text {
+	color: var(--text-normal);
+	flex: 1;
+	min-width: 0;
+}
+
+.obsidianaitools-agent-update-banner-actions {
+	display: flex;
+	gap: 6px;
+	flex-shrink: 0;
+}
+
+.obsidianaitools-agent-update-banner-update,
+.obsidianaitools-agent-update-banner-dismiss {
+	padding: 4px 10px;
+	font-size: 12px;
+	border-radius: 4px;
+	cursor: pointer;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.obsidianaitools-agent-update-banner-update {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+}
+
+.obsidianaitools-agent-update-banner-update:hover:not(:disabled) {
+	background-color: var(--interactive-accent-hover);
+}
+
+.obsidianaitools-agent-update-banner-update:disabled,
+.obsidianaitools-agent-update-banner-dismiss:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.obsidianaitools-agent-update-banner-dismiss {
+	background-color: transparent;
+	color: var(--text-muted);
+}
+
+.obsidianaitools-agent-update-banner-dismiss:hover:not(:disabled) {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+/* ---------------------------------------------------------------
+   Plugin upgrade notice (shown after version bump, persistent)
+--------------------------------------------------------------- */
+.obsidianaitools-upgrade-title {
+	font-weight: 600;
+	margin: 0 0 4px;
+}
+
+.obsidianaitools-upgrade-body {
+	margin: 0 0 10px;
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+.obsidianaitools-upgrade-buttons {
+	display: flex;
+	gap: 8px;
+}
+
+.obsidianaitools-upgrade-btn-restart {
+	padding: 5px 12px;
+	font-size: 13px;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.obsidianaitools-upgrade-btn-later {
+	padding: 5px 12px;
+	font-size: 13px;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.obsidianaitools-upgrade-btn-later:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
 /* Messages container */
 .obsidianaitools-chat-view-messages {
 	flex: 1;
@@ -2236,4 +2370,164 @@ If your plugin does not need CSS, delete this file.
 	cursor: text;
 	white-space: pre;
 	overflow-x: auto;
+}
+
+/* Error Boundary */
+.obsidianaitools-error-boundary {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	padding: 32px;
+}
+
+.obsidianaitools-error-boundary-content {
+	text-align: center;
+	max-width: 400px;
+}
+
+.obsidianaitools-error-boundary-content h3 {
+	margin: 0 0 12px 0;
+	color: var(--text-normal);
+}
+
+.obsidianaitools-error-boundary-content p {
+	margin: 0 0 16px 0;
+	color: var(--text-muted);
+}
+
+.obsidianaitools-error-boundary-details {
+	margin: 0 0 16px 0;
+	padding: 8px 12px;
+	background-color: var(--background-secondary);
+	border-radius: 4px;
+	font-size: 12px;
+	color: var(--text-muted);
+	text-align: left;
+	overflow-x: auto;
+	user-select: text;
+}
+
+/* ===== Diagnostics / Error Log ===== */
+.obsidianaitools-diagnostics-path {
+	margin: -8px 0 16px 0;
+	padding: 6px 12px;
+	font-size: 12px;
+	color: var(--text-muted);
+	background-color: var(--background-secondary);
+	border-radius: 4px;
+	overflow-x: auto;
+	user-select: text;
+}
+
+.obsidianaitools-diagnostics-path code {
+	font-size: 12px;
+}
+
+.obsidianaitools-error-log-modal {
+	width: min(900px, 90vw);
+}
+
+.obsidianaitools-error-log-desc {
+	font-size: 12px;
+	color: var(--text-muted);
+	margin-bottom: 8px;
+	user-select: text;
+}
+
+.obsidianaitools-error-log-desc code {
+	font-size: 11px;
+}
+
+.obsidianaitools-error-log-toolbar {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.obsidianaitools-error-log-entries {
+	max-height: 60vh;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.obsidianaitools-error-log-empty {
+	color: var(--text-muted);
+	font-style: italic;
+	text-align: center;
+	padding: 24px 0;
+}
+
+.obsidianaitools-error-log-summary {
+	font-size: 12px;
+	color: var(--text-muted);
+	margin: 0 0 8px 0;
+}
+
+.obsidianaitools-error-log-entry {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 10px 12px;
+	background-color: var(--background-secondary);
+	user-select: text;
+}
+
+.obsidianaitools-error-log-entry-header {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	font-size: 11px;
+	color: var(--text-muted);
+	margin-bottom: 6px;
+}
+
+.obsidianaitools-error-log-entry-time {
+	font-family: var(--font-monospace);
+}
+
+.obsidianaitools-error-log-entry-source {
+	background-color: var(--background-modifier-border);
+	padding: 1px 6px;
+	border-radius: 3px;
+	font-family: var(--font-monospace);
+}
+
+.obsidianaitools-error-log-entry-agent {
+	background-color: var(--background-modifier-hover);
+	padding: 1px 6px;
+	border-radius: 3px;
+	font-family: var(--font-monospace);
+}
+
+.obsidianaitools-error-log-entry-message {
+	font-size: 13px;
+	color: var(--text-normal);
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.obsidianaitools-error-log-entry-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-top: 6px;
+	font-size: 11px;
+	color: var(--text-muted);
+	font-family: var(--font-monospace);
+}
+
+.obsidianaitools-error-log-entry-data,
+.obsidianaitools-error-log-entry-stack {
+	margin: 8px 0 0 0;
+	padding: 8px;
+	background-color: var(--background-primary);
+	border-radius: 4px;
+	font-size: 11px;
+	font-family: var(--font-monospace);
+	white-space: pre-wrap;
+	word-break: break-word;
+	max-height: 240px;
+	overflow-y: auto;
 }

@@ -1,8 +1,9 @@
 import { spawnSync } from "child_process";
-import { existsSync, readdirSync } from "fs";
+import { existsSync, readdirSync, readFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import { Platform } from "obsidian";
+import { getEnhancedWindowsEnv } from "./windows-env";
 
 /**
  * Result of a path detection attempt
@@ -143,6 +144,25 @@ const COMMON_AGENT_PATHS: Record<string, string[]> = {
 		`${homedir()}/.npm-global/bin/claude-code-acp`,
 		`${homedir()}/.npm-global/bin/codex-acp`,
 		`${homedir()}/.npm-global/bin/gemini`,
+		// NVM installs under ~/.nvm/versions/node/<version>/bin — enumerate all
+		// installed versions so the detector finds the agent regardless of which
+		// node version is currently active.
+		...(() => {
+			try {
+				const nvmDir = join(homedir(), ".nvm", "versions", "node");
+				if (existsSync(nvmDir)) {
+					return readdirSync(nvmDir).flatMap((v) => [
+						join(nvmDir, v, "bin", "claude-agent-acp"),
+						join(nvmDir, v, "bin", "claude-code-acp"),
+						join(nvmDir, v, "bin", "codex-acp"),
+						join(nvmDir, v, "bin", "gemini"),
+					]);
+				}
+			} catch {
+				// ignore
+			}
+			return [];
+		})(),
 	],
 	// Windows — use process.env.APPDATA for the actual user path
 	win32: [
@@ -205,7 +225,6 @@ export function detectNodePath(): PathDetectionResult {
 				const defaultAliasPath = join(nvmDir, "alias", "default");
 				let defaultVersion: string | null = null;
 				try {
-					const { readFileSync } = require("fs") as typeof import("fs");
 					defaultVersion = readFileSync(defaultAliasPath, "utf-8").trim();
 				} catch {
 					// No default alias
@@ -215,7 +234,7 @@ export function detectNodePath(): PathDetectionResult {
 				// Prefer default alias version, otherwise pick latest
 				const sorted = versions.sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
 				const preferred = defaultVersion
-					? sorted.find(v => v === defaultVersion || v.startsWith(defaultVersion!.replace(/^\^/, "")))
+					? sorted.find(v => v === defaultVersion || v.startsWith(defaultVersion.replace(/^\^/, "")))
 					: null;
 				const candidates = preferred ? [preferred, ...sorted.filter(v => v !== preferred)] : sorted;
 
@@ -265,10 +284,29 @@ export function detectAgentPath(agentId: string): PathDetectionResult {
 
 	for (const name of namesToTry) {
 		try {
-			const result = spawnSync(command, [name], {
-				encoding: "utf-8",
-				timeout: 5000,
-			});
+			// On Windows, enhance PATH from the registry so npm-prefix bin
+			// dirs (e.g. %APPDATA%/npm) are searched even when Obsidian was
+			// launched with the minimal GUI PATH.
+			// On macOS/Linux, route through a login shell so shell-config
+			// PATH entries (homebrew, nvm, ~/.npm-global) are visible.
+			const result = Platform.isWin
+				? spawnSync(command, [name], {
+						env: getEnhancedWindowsEnv({ ...process.env }),
+						encoding: "utf-8" as const,
+						timeout: 5000,
+					})
+				: spawnSync(
+						Platform.isMacOS ? "/bin/zsh" : "/bin/bash",
+						[
+							"-l",
+							"-c",
+							// On Linux, NVM is typically sourced in ~/.bashrc
+							// which login shells (-l) do NOT source. Explicitly
+							// load nvm.sh so its PATH additions are available.
+							`[ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh"; which '${name.replace(/'/g, "'\\''")}'`,
+						],
+						{ encoding: "utf-8" as const, timeout: 5000 },
+					);
 
 			if (result.status === 0 && result.stdout) {
 				const lines = result.stdout.trim().split(/\r?\n/);

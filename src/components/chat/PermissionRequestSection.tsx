@@ -4,6 +4,26 @@ import type AgentClientPlugin from "../../plugin";
 import { Logger } from "../../shared/logger";
 import * as acp from "@agentclientprotocol/sdk";
 
+/**
+ * Display short, predictable button text based on the option's `kind`,
+ * regardless of the verbose scope string the agent appends (e.g.
+ * "Always Allow Skill(fix-tool), Skill(fix-tool:*)"). Full scope is still
+ * surfaced via the button's title attribute (hover tooltip).
+ */
+function permissionButtonLabel(option: acp.PermissionOption): string {
+	switch (option.kind) {
+		case "allow_always":
+			return "Always Allow";
+		case "allow_once":
+			return "Allow";
+		case "reject_once":
+		case "reject_always":
+			return "Reject";
+		default:
+			return option.name;
+	}
+}
+
 interface PermissionRequestSectionProps {
 	permissionRequest: {
 		requestId: string;
@@ -101,6 +121,7 @@ export function PermissionRequestSection({
 								<button
 									key={option.optionId}
 									className={`obsidianaitools-permission-option ${option.kind ? `obsidianaitools-permission-kind-${option.kind}` : ""}`}
+									title={option.name}
 									onClick={() => {
 										// Update local UI state immediately for feedback
 										if (onOptionSelected) {
@@ -120,7 +141,7 @@ export function PermissionRequestSection({
 										}
 									}}
 								>
-									{option.name}
+									{permissionButtonLabel(option)}
 								</button>
 							))}
 							<button

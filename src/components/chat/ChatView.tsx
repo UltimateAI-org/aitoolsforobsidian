@@ -6,9 +6,11 @@ import { createRoot, Root } from "react-dom/client";
 import type AgentClientPlugin from "../../plugin";
 
 // Component imports
+import { ErrorBoundary } from "../ErrorBoundary";
 import { ChatHeader } from "./ChatHeader";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
+import { AgentUpdateBanner } from "./AgentUpdateBanner";
 import { SessionHistoryModal } from "./SessionHistoryModal";
 import { ConfirmDeleteModal } from "./ConfirmDeleteModal";
 
@@ -213,6 +215,19 @@ function ChatComponent({
 	// Local State
 	// ============================================================
 	const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+	const [agentUpdate, setAgentUpdate] = useState<{
+		agentId: string;
+		installed: string | null;
+		latest: string;
+	} | null>(null);
+	const [dismissedAgentUpdates, setDismissedAgentUpdates] = useState<
+		Set<string>
+	>(new Set());
+	const [compatWarning, setCompatWarning] = useState<{
+		agentId: string;
+		installed: string;
+		maxTested: string;
+	} | null>(null);
 	const [restoredMessage, setRestoredMessage] = useState<string | null>(null);
 	/** Flag to ignore history replay messages during session/load */
 	const [isLoadingSessionHistory, setIsLoadingSessionHistory] =
@@ -729,6 +744,111 @@ function ChatComponent({
 			});
 	}, [plugin]);
 
+	// Agent npm-package update check. Runs when the active agent changes;
+	// shows a banner if the installed version is older than the registry's
+	// latest. Dismissals are remembered for the React-mount lifetime per
+	// version, so users don't get re-nagged after dismissing.
+	useEffect(() => {
+		const activeAgentId =
+			settings.activeAgentId || settings.claude.id;
+		if (!activeAgentId) return;
+		let cancelled = false;
+
+		// Delay the version check so it doesn't compete with session
+		// initialisation during Obsidian startup. The check spawns child
+		// processes (npm/where/which) that — even async — add load pressure.
+		const delayId = window.setTimeout(() => {
+			void (async () => {
+				try {
+					const { checkAgentVersion, getNpmPackage } = await import(
+						"../../shared/version-checker"
+					);
+					if (!getNpmPackage(activeAgentId)) return;
+					const cmd =
+						activeAgentId === settings.claude.id
+							? settings.claude.command
+							: activeAgentId === settings.codex.id
+								? settings.codex.command
+								: activeAgentId === settings.gemini.id
+									? settings.gemini.command
+									: undefined;
+					const info = await checkAgentVersion(
+						activeAgentId,
+						settings.nodePath,
+						cmd || undefined,
+					);
+					if (cancelled) return;
+
+					// Show the banner when the agent is installed and there's a
+					// known newer version (or when we can't read the installed
+					// version but a latest exists — the user can still choose to
+					// update). Skip if not installed (settings handles install)
+					// or if the user already dismissed this latest version.
+					const dismissKey = info.latest
+						? `${activeAgentId}@${info.latest}`
+						: "";
+					const shouldShow =
+						info.isInstalled &&
+						!!info.latest &&
+						!dismissedAgentUpdates.has(dismissKey) &&
+						// Only show if outdated, OR if we can't tell (no installed
+						// version detected — being honest that we're unsure).
+						(info.isOutdated || !info.installed);
+
+					if (shouldShow && info.latest) {
+						setAgentUpdate({
+							agentId: activeAgentId,
+							installed: info.installed,
+							latest: info.latest,
+						});
+					} else {
+						setAgentUpdate(null);
+					}
+
+					// Compatibility warning: installed version is newer than
+					// what this plugin release was tested against.
+					// Only show when we know the exact installed version, it's
+					// above maxTested, and the user hasn't dismissed it yet for
+					// this specific version (persisted across restarts).
+					if (
+						info.isAboveTestedVersion &&
+						info.installed &&
+						info.maxTestedVersion
+					) {
+						const dismissed =
+							plugin.settings.compatWarningDismissed[activeAgentId];
+						if (dismissed !== info.installed) {
+							setCompatWarning({
+								agentId: activeAgentId,
+								installed: info.installed,
+								maxTested: info.maxTestedVersion,
+							});
+						}
+					} else {
+						setCompatWarning(null);
+					}
+				} catch (err) {
+					console.error("[ChatView] agent version check failed:", err);
+				}
+			})();
+		}, 3000); // 3-second startup grace period
+
+		return () => {
+			cancelled = true;
+			window.clearTimeout(delayId);
+		};
+	}, [
+		settings.activeAgentId,
+		settings.claude.id,
+		settings.claude.command,
+		settings.codex.id,
+		settings.codex.command,
+		settings.gemini.id,
+		settings.gemini.command,
+		settings.nodePath,
+		dismissedAgentUpdates,
+	]);
+
 	// ============================================================
 	// Effects - Save Session Messages on Turn End
 	// ============================================================
@@ -881,6 +1001,53 @@ function ChatComponent({
 				onOpenHistory={handleOpenHistory}
 			/>
 
+			{agentUpdate && (
+				<AgentUpdateBanner
+					plugin={plugin}
+					agentId={agentUpdate.agentId}
+					installedVersion={agentUpdate.installed}
+					latestVersion={agentUpdate.latest}
+					nodePath={settings.nodePath}
+					onDismiss={() => {
+						setDismissedAgentUpdates(
+							(prev) =>
+								new Set([
+									...prev,
+									`${agentUpdate.agentId}@${agentUpdate.latest}`,
+								]),
+						);
+						setAgentUpdate(null);
+					}}
+					onUpdated={() => {
+						setAgentUpdate(null);
+					}}
+				/>
+			)}
+
+			{compatWarning && !agentUpdate && (
+				<div className="obsidianaitools-compat-warning">
+					<span className="obsidianaitools-compat-warning-text">
+						⚠️ {compatWarning.agentId === settings.claude.id ? "Claude Agent" :
+							compatWarning.agentId === settings.gemini.id ? "Gemini CLI" :
+							compatWarning.agentId} v{compatWarning.installed} is newer than
+						the tested version (v{compatWarning.maxTested}) — if you hit
+						issues, check for a plugin update.
+					</span>
+					<button
+						className="obsidianaitools-compat-warning-dismiss"
+						onClick={() => {
+							// Persist dismiss so it won't show again for this version
+							plugin.settings.compatWarningDismissed[compatWarning.agentId] =
+								compatWarning.installed;
+							void plugin.saveSettings();
+							setCompatWarning(null);
+						}}
+					>
+						Dismiss
+					</button>
+				</div>
+			)}
+
 			<ChatMessages
 				messages={messages}
 				isSending={isSending}
@@ -956,7 +1123,11 @@ export class ChatView extends ItemView {
 			container.empty();
 
 			this.root = createRoot(container);
-			this.root.render(<ChatComponent plugin={this.plugin} view={this} />);
+			this.root.render(
+				<ErrorBoundary>
+					<ChatComponent plugin={this.plugin} view={this} />
+				</ErrorBoundary>,
+			);
 		} catch (error) {
 			console.error("[AI Tools] Failed to open chat view:", error);
 		}

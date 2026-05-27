@@ -212,6 +212,18 @@ export class OnboardingModal extends Modal {
 			text: "Select an AI agent to use:",
 		});
 
+		// Signup hint
+		const signupHint = this.stepContainer.createEl("p", {
+			cls: "obsidianaitools-onboarding-tip",
+		});
+		signupHint.appendText("You'll need an API key to get started. ");
+		const signupLink = signupHint.createEl("a", {
+			text: "Sign up at obsidianaitools.com",
+			href: "https://obsidianaitools.com",
+		});
+		signupLink.setAttribute("target", "_blank");
+		signupHint.appendText(" to create an account.");
+
 		// Agent cards
 		const cardsContainer = this.stepContainer.createDiv({
 			cls: "obsidianaitools-onboarding-cards",

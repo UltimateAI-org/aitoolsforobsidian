@@ -1,4 +1,6 @@
 import { spawn, ChildProcess } from "child_process";
+import { existsSync } from "fs";
+import { Readable, Writable, Transform } from "stream";
 import * as acp from "@agentclientprotocol/sdk";
 import { Platform } from "obsidian";
 
@@ -24,6 +26,7 @@ import type {
 import { AcpTypeConverter } from "./acp-type-converter";
 import { TerminalManager } from "../../shared/terminal-manager";
 import { Logger } from "../../shared/logger";
+import { describeError, logWireLine } from "../../shared/error-log";
 import type AgentClientPlugin from "../../plugin";
 import type {
 	SlashCommand,
@@ -203,6 +206,43 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 
 		const command = config.command.trim();
 		const args = config.args.length > 0 ? [...config.args] : [];
+
+		// Pre-flight: verify the command actually exists before spawning.
+		// Without this, missing binaries surface as "ACP connection closed"
+		// on Windows (exit code 1, not 127), which is unhelpful — especially
+		// for users upgrading from claude-code-acp to claude-agent-acp who
+		// haven't reinstalled the npm package yet.
+		if (
+			!this.plugin.settings.windowsWslMode &&
+			!(await this.commandExistsAsync(command))
+		) {
+			this.logger.error(
+				`[AcpAdapter] Pre-flight: command not found: ${command}`,
+			);
+			if (isKnownAgent(config.id)) {
+				const agentError: AgentError = {
+					id: crypto.randomUUID(),
+					category: "configuration",
+					severity: "error",
+					title: "Command Not Found",
+					message: `${getAgentDisplayName(config.id)} is not installed (looked for "${command}"). Click "Install" to install the latest version automatically.`,
+					suggestion:
+						"Click 'Install' to install via npm, or configure the path manually in settings.",
+					occurredAt: new Date(),
+					agentId: config.id,
+					code: "COMMAND_NOT_FOUND",
+					canAutoInstall: true,
+				};
+				this.errorCallback?.(agentError);
+				const wrappedError = new Error(agentError.message);
+				(wrappedError as Error & { agentError: AgentError }).agentError =
+					agentError;
+				throw wrappedError;
+			}
+			throw new Error(
+				`Command "${command}" not found. Check the agent's command path in settings.`,
+			);
+		}
 
 		this.logger.log(
 			`[AcpAdapter] Active agent: ${config.displayName} (${config.id})`,
@@ -419,8 +459,16 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 		});
 
 		agentProcess.stderr?.setEncoding("utf8");
+		const currentAgentId = config.id;
 		agentProcess.stderr?.on("data", (data) => {
-			this.logger.log(`[AcpAdapter] ${agentLabel} stderr:`, data);
+			// Always log stderr so users can diagnose agent crashes without
+			// having to enable debug mode first.
+			console.error(`[AcpAdapter] ${agentLabel} stderr:`, data);
+			void this.plugin.errorLog?.logError({
+				source: "acp-stderr",
+				agentId: currentAgentId,
+				message: typeof data === "string" ? data : String(data),
+			});
 		});
 
 		// Create stream for ACP communication
@@ -432,27 +480,94 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 		const stdin = agentProcess.stdin;
 		const stdout = agentProcess.stdout;
 
-		const input = new WritableStream<Uint8Array>({
-			write(chunk: Uint8Array) {
-				stdin.write(chunk);
+		// Wire-tap using Node.js Transform streams — must be done BEFORE
+		// calling .toWeb() so we never mix Node.js Web Streams with Chromium's
+		// WHATWG Web Streams. Mixing them causes:
+		//   "transform.readable must be an instance of ReadableStream.
+		//    Received an instance of ReadableStream"
+		// because Node's ReadableStream and Chromium's ReadableStream are
+		// different classes even though they implement the same spec.
+		const errorLog = this.plugin.errorLog;
+		const tapAgentId = config.id;
+
+		// Outgoing tap: ACP SDK → stdinTap (logs) → process stdin
+		let outBuffer = "";
+		const stdinTap = new Transform({
+			transform(
+				chunk: Buffer,
+				_enc: BufferEncoding,
+				done: (err?: Error | null, data?: Buffer) => void,
+			) {
+				if (errorLog) {
+					try {
+						outBuffer += chunk.toString("utf-8");
+						let idx = outBuffer.indexOf("\n");
+						while (idx >= 0) {
+							const line = outBuffer.slice(0, idx).trim();
+							outBuffer = outBuffer.slice(idx + 1);
+							if (line.length > 0) {
+								void logWireLine(errorLog, "out", line, tapAgentId);
+							}
+							idx = outBuffer.indexOf("\n");
+						}
+					} catch {
+						// Logging must never break the stream.
+					}
+				}
+				done(null, chunk);
 			},
-			close() {
-				stdin.end();
+			flush(done: (err?: Error | null) => void) {
+				if (errorLog && outBuffer.trim().length > 0) {
+					void logWireLine(errorLog, "out", outBuffer.trim(), tapAgentId);
+					outBuffer = "";
+				}
+				done();
 			},
 		});
-		const output = new ReadableStream<Uint8Array>({
-			start(controller) {
-				stdout.on("data", (chunk: Uint8Array) => {
-					controller.enqueue(chunk);
-				});
-				stdout.on("end", () => {
-					controller.close();
-				});
-				stdout.on("error", (err) => {
-					controller.error(err);
-				});
+		stdinTap.pipe(stdin);
+
+		// Incoming tap: process stdout → stdoutTap (logs) → ACP SDK
+		let inBuffer = "";
+		const stdoutTap = new Transform({
+			transform(
+				chunk: Buffer,
+				_enc: BufferEncoding,
+				done: (err?: Error | null, data?: Buffer) => void,
+			) {
+				if (errorLog) {
+					try {
+						inBuffer += chunk.toString("utf-8");
+						let idx = inBuffer.indexOf("\n");
+						while (idx >= 0) {
+							const line = inBuffer.slice(0, idx).trim();
+							inBuffer = inBuffer.slice(idx + 1);
+							if (line.length > 0) {
+								void logWireLine(errorLog, "in", line, tapAgentId);
+							}
+							idx = inBuffer.indexOf("\n");
+						}
+					} catch {
+						// Logging must never break the stream.
+					}
+				}
+				done(null, chunk);
+			},
+			flush(done: (err?: Error | null) => void) {
+				if (errorLog && inBuffer.trim().length > 0) {
+					void logWireLine(errorLog, "in", inBuffer.trim(), tapAgentId);
+					inBuffer = "";
+				}
+				done();
 			},
 		});
+		stdout.pipe(stdoutTap);
+
+		// Convert tapped Node.js streams to Web Streams for the ACP SDK.
+		// Both sides are now pure Node.js streams — no Chromium/Node mismatch.
+		/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+		const input = (Writable as any).toWeb(stdinTap) as WritableStream<Uint8Array>;
+		const output = (Readable as any).toWeb(stdoutTap) as ReadableStream<Uint8Array>;
+		/* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 
 		this.logger.log(
 			"[AcpAdapter] Using working directory:",
@@ -474,6 +589,11 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 						writeTextFile: false,
 					},
 					terminal: true,
+					// Advertise gateway auth support so the agent offers the
+					// gateway method instead of requiring a local Claude login.
+					auth: {
+						_meta: { gateway: true },
+					},
 				},
 				clientInfo: {
 					name: "aitoolsforobsidian",
@@ -517,6 +637,15 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 
 			const initResult = await Promise.race([initPromise, timeoutPromise]);
 			clearTimeout(initTimeoutId!);
+
+			// Note: do NOT call connection.authenticate(gateway) here. When
+			// gateway auth is configured the agent forces ANTHROPIC_AUTH_TOKEN=" "
+			// on the Claude CLI subprocess, which makes Claude CLI emit its own
+			// (empty) Authorization header that overrides the gateway's real
+			// header. By not authenticating, the user's ANTHROPIC_AUTH_TOKEN /
+			// ANTHROPIC_BASE_URL env vars (set in buildAgentConfigWithApiKey)
+			// pass straight through process.env to the Claude CLI, which is the
+			// same flow that worked before the v0.37.0 agent upgrade.
 
 			this.logger.log(
 				`[AcpAdapter] ✅ Connected to agent (protocol v${initResult.protocolVersion})`,
@@ -744,6 +873,18 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 			);
 		} catch (error: unknown) {
 			this.logger.error("[AcpAdapter] Prompt Error:", error);
+
+			const described = describeError(error);
+			void this.plugin.errorLog?.logError({
+				source: "acp-prompt-error",
+				agentId: this.currentAgentId ?? undefined,
+				sessionId,
+				message: described.message,
+				code: described.code,
+				errorKind: described.errorKind,
+				data: described.data,
+				stack: described.stack,
+			});
 
 			// Check if this is an ignorable error (empty response or user abort)
 			const errorObj = error as Record<string, unknown> | null;
@@ -1116,6 +1257,77 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 			message: `Failed to start ${agentLabel}: ${error.message}`,
 			suggestion: "Please check the agent path and Node.js configuration in settings.",
 		};
+	}
+
+	private commandExistsAsync(command: string): Promise<boolean> {
+		// Full path: just stat it synchronously — always instant.
+		if (
+			command.includes("/") ||
+			command.includes("\\") ||
+			/^[A-Za-z]:/.test(command)
+		) {
+			return Promise.resolve(existsSync(command));
+		}
+
+		const nodePath = this.plugin.settings.nodePath?.trim();
+		const nodeDir = nodePath ? resolveCommandDirectory(nodePath) : null;
+
+		return new Promise<boolean>((resolve) => {
+			try {
+				let spawnCommand: string;
+				let spawnArgs: string[];
+				let env: NodeJS.ProcessEnv = { ...process.env };
+
+				if (Platform.isWin) {
+					env = getEnhancedWindowsEnv(env);
+					if (nodeDir) {
+						env.PATH = `${nodeDir};${env.PATH ?? ""}`;
+					}
+					spawnCommand = "where.exe";
+					spawnArgs = [command];
+				} else {
+					// macOS / Linux: login shell so nvm/homebrew PATH is visible.
+					const shell = Platform.isMacOS ? "/bin/zsh" : "/bin/bash";
+					const safeCmd = command.replace(/'/g, "'\\''");
+					let shellCmd = `which '${safeCmd}'`;
+					if (nodeDir) {
+						const safeNodeDir = nodeDir.replace(/'/g, "'\\''");
+						shellCmd = `export PATH='${safeNodeDir}':"$PATH"; ${shellCmd}`;
+					}
+					spawnCommand = shell;
+					spawnArgs = ["-l", "-c", shellCmd];
+				}
+
+				const child = spawn(spawnCommand, spawnArgs, {
+					stdio: ["pipe", "pipe", "pipe"],
+					env,
+				});
+
+				let stdout = "";
+				child.stdout?.on("data", (data: unknown) => {
+					stdout += typeof data === "string" ? data : String(data);
+				});
+
+				// Timeout: resolve true so we proceed and let the actual agent
+				// spawn surface a real error if the binary is missing.
+				const timer = setTimeout(() => {
+					child.kill();
+					resolve(true);
+				}, 3000);
+
+				child.on("close", (code: number | null) => {
+					clearTimeout(timer);
+					resolve(code === 0 && !!stdout.trim());
+				});
+
+				child.on("error", () => {
+					clearTimeout(timer);
+					resolve(false);
+				});
+			} catch {
+				resolve(false);
+			}
+		});
 	}
 
 	/**
@@ -1686,7 +1898,7 @@ To fix:
 		try {
 			this.logger.log(`[AcpAdapter] Resuming session: ${sessionId}...`);
 
-			const response = await this.connection.unstable_resumeSession({
+			const response = await this.connection.resumeSession({
 				sessionId,
 				cwd,
 				mcpServers: [],

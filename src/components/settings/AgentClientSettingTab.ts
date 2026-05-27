@@ -1,5 +1,6 @@
 import {
 	App,
+	ButtonComponent,
 	PluginSettingTab,
 	Setting,
 	DropdownComponent,
@@ -10,6 +11,9 @@ import type AgentClientPlugin from "../../plugin";
 import type { CustomAgentSettings, AgentEnvVar } from "../../plugin";
 import { normalizeEnvVars } from "../../shared/settings-utils";
 import { detectNodePath, detectAgentPath, validatePath } from "../../shared/path-detector";
+import { checkAgentVersion, getNpmPackage } from "../../shared/version-checker";
+import { installAgent, getAgentDisplayName } from "../../shared/agent-installer";
+import { ErrorLogModal } from "./ErrorLogModal";
 
 export class AgentClientSettingTab extends PluginSettingTab {
 	plugin: AgentClientPlugin;
@@ -105,6 +109,8 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						}
 					}),
 			);
+
+		this.renderSystemStatusSection(containerEl);
 
 		// ─────────────────────────────────────────────────────────────────────
 		// API Configuration (global for all agents)
@@ -555,7 +561,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Debug mode")
 			.setDesc(
-				"Enable debug logging to console. Useful for development and troubleshooting.",
+				"Enable debug logging to console and capture the full ACP wire traffic to acp-wire.log. Useful for development and troubleshooting.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -565,6 +571,106 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}),
 			);
+
+		this.renderDiagnosticsSection(containerEl);
+	}
+
+	/**
+	 * Render diagnostics controls for the persistent error log.
+	 *
+	 * Errors caught by the AcpAdapter and message-service are appended as
+	 * NDJSON to <vault>/<configDir>/plugins/obsidianaitools/error.log. This
+	 * section lets users view, copy and clear that file without opening
+	 * DevTools.
+	 */
+	private renderDiagnosticsSection(containerEl: HTMLElement): void {
+		new Setting(containerEl).setName("Diagnostics").setHeading();
+
+		new Setting(containerEl)
+			.setName("Error log")
+			.setDesc(
+				"Persistent log of agent failures (socket errors, prompt errors, agent stderr). Recorded automatically.",
+			)
+			.addButton((button) =>
+				button
+					.setButtonText("View")
+					.setCta()
+					.onClick(() => {
+						new ErrorLogModal(this.app, this.plugin).open();
+					}),
+			)
+			.addButton((button) =>
+				button.setButtonText("Copy").onClick(async () => {
+					const raw = await this.plugin.errorLog.readErrorLog();
+					if (!raw) {
+						new Notice("Error log is empty.", 2000);
+						return;
+					}
+					try {
+						await navigator.clipboard.writeText(raw);
+						new Notice("Error log copied to clipboard.", 2000);
+					} catch {
+						new Notice("Failed to copy to clipboard.", 3000);
+					}
+				}),
+			)
+			.addButton((button) =>
+				button
+					.setButtonText("Clear")
+					.setWarning()
+					.onClick(async () => {
+						await this.plugin.errorLog.clearErrorLog();
+						new Notice("Error log cleared.", 2000);
+					}),
+			);
+
+		const pathInfo = containerEl.createDiv({
+			cls: "obsidianaitools-diagnostics-path",
+		});
+		pathInfo.appendText("Log file: ");
+		pathInfo.createEl("code", {
+			text: this.plugin.errorLog.getErrorLogPath(),
+		});
+
+		if (this.plugin.settings.debugMode) {
+			new Setting(containerEl)
+				.setName("ACP wire log")
+				.setDesc(
+					"Full JSON-RPC traffic captured while debug mode is on. Use this to share precise traces with maintainers.",
+				)
+				.addButton((button) =>
+					button.setButtonText("Copy").onClick(async () => {
+						const raw = await this.plugin.errorLog.readWireLog();
+						if (!raw) {
+							new Notice("Wire log is empty.", 2000);
+							return;
+						}
+						try {
+							await navigator.clipboard.writeText(raw);
+							new Notice("Wire log copied to clipboard.", 2000);
+						} catch {
+							new Notice("Failed to copy to clipboard.", 3000);
+						}
+					}),
+				)
+				.addButton((button) =>
+					button
+						.setButtonText("Clear")
+						.setWarning()
+						.onClick(async () => {
+							await this.plugin.errorLog.clearWireLog();
+							new Notice("Wire log cleared.", 2000);
+						}),
+				);
+
+			const wirePathInfo = containerEl.createDiv({
+				cls: "obsidianaitools-diagnostics-path",
+			});
+			wirePathInfo.appendText("Wire log file: ");
+			wirePathInfo.createEl("code", {
+				text: this.plugin.errorLog.getWireLogPath(),
+			});
+		}
 	}
 
 	/**
@@ -644,11 +750,11 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		const options: { id: string; label: string }[] = [
 			{
 				id: this.plugin.settings.claude.id,
-				label: `${claudeName} (${this.plugin.settings.claude.id}) - Recommended`,
+				label: `${claudeName} - Recommended`,
 			},
 			{
 				id: this.plugin.settings.gemini.id,
-				label: `${this.plugin.settings.gemini.displayName || this.plugin.settings.gemini.id} (${this.plugin.settings.gemini.id}) - Experimental`,
+				label: `${this.plugin.settings.gemini.displayName || this.plugin.settings.gemini.id} - Experimental`,
 			},
 		];
 		for (const agent of this.plugin.settings.customAgents) {
@@ -668,6 +774,356 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			seen.add(id);
 			return true;
 		});
+	}
+
+	/**
+	 * Look up the configured command path for a known agent, used to give
+	 * the version checker a fast/reliable installed-version source.
+	 */
+	private commandPathForAgent(agentId: string): string | undefined {
+		const s = this.plugin.settings;
+		if (agentId === s.claude.id) return s.claude.command || undefined;
+		if (agentId === s.codex.id) return s.codex.command || undefined;
+		if (agentId === s.gemini.id) return s.gemini.command || undefined;
+		return undefined;
+	}
+
+	/**
+	 * True when a command string is a bare executable name with no directory
+	 * component (e.g. "claude-agent-acp"). existsSync always returns false for
+	 * bare names, so they must be replaced with full paths for reliable checks.
+	 */
+	private static isBareCommand(cmd: string): boolean {
+		return !!cmd && !cmd.includes("/") && !cmd.includes("\\");
+	}
+
+	/**
+	 * After a successful npm install, auto-detect the binary path and persist
+	 * it so subsequent version checks use the fast existsSync path instead of
+	 * falling through to slow npm spawns.
+	 *
+	 * Saves when the command is empty OR is a bare name (no path separator) —
+	 * bare names fail existsSync so the settings always show "Not installed".
+	 * Never overwrites a path that already contains a directory separator.
+	 */
+	private async autoSaveCommandPath(agentId: string): Promise<void> {
+		try {
+			// 1. Standard detection: which/where + common filesystem paths.
+			const { detectAgentPath } = await import("../../shared/path-detector");
+			let fullPath = detectAgentPath(agentId).path;
+
+			// 2. Fallback: derive the bin directory from `npm root -g`.
+			//    Reliable right after install even when the login shell hasn't
+			//    picked up the new PATH (common on Linux GUI apps).
+			if (!fullPath) {
+				fullPath = await this.detectPathFromNpmRoot(agentId);
+			}
+
+			if (!fullPath) return;
+
+			const s = this.plugin.settings;
+			const needsSave = (cmd: string) =>
+				!cmd || AgentClientSettingTab.isBareCommand(cmd);
+
+			if (agentId === s.claude.id && needsSave(s.claude.command)) {
+				s.claude.command = fullPath;
+			} else if (agentId === s.codex.id && needsSave(s.codex.command)) {
+				s.codex.command = fullPath;
+			} else if (agentId === s.gemini.id && needsSave(s.gemini.command)) {
+				s.gemini.command = fullPath;
+			} else {
+				return;
+			}
+			await this.plugin.saveSettings();
+		} catch {
+			// Non-critical — version check will fall back to detection
+		}
+	}
+
+	/**
+	 * Derive the agent binary path from `npm root -g`.
+	 * npm root -g  →  e.g. /usr/local/lib/node_modules  (Unix)
+	 *                      C:\Users\…\npm\node_modules   (Windows)
+	 * Bin dir      →       /usr/local/bin                (Unix, up two + /bin)
+	 *                      C:\Users\…\npm                (Windows, up one)
+	 */
+	private async detectPathFromNpmRoot(agentId: string): Promise<string | null> {
+		try {
+			const { getNpmGlobalRoot } = await import("../../shared/version-checker");
+			const root = await getNpmGlobalRoot(this.plugin.settings.nodePath);
+			if (!root) return null;
+
+			const path = await import("path");
+			const { existsSync } = await import("fs");
+			const { Platform } = await import("obsidian");
+
+			const BINARY_NAMES: Record<string, { win: string; unix: string }> = {
+				"claude-code-acp": { win: "claude-agent-acp.cmd", unix: "claude-agent-acp" },
+				"codex-acp":       { win: "codex-acp.cmd",        unix: "codex-acp" },
+				"gemini-cli":      { win: "gemini.cmd",            unix: "gemini" },
+			};
+			const names = BINARY_NAMES[agentId];
+			if (!names) return null;
+
+			let binDir: string;
+			if (Platform.isWin) {
+				// root = …\npm\node_modules  →  bin = …\npm
+				binDir = path.dirname(root);
+			} else {
+				// root = …/lib/node_modules  →  prefix = …  →  bin = …/bin
+				binDir = path.join(path.dirname(path.dirname(root)), "bin");
+			}
+
+			const binaryName = Platform.isWin ? names.win : names.unix;
+			const fullPath = path.join(binDir, binaryName);
+			return existsSync(fullPath) ? fullPath : null;
+		} catch {
+			return null;
+		}
+	}
+
+	/**
+	 * Render a prominent "System status" section at the top of settings that
+	 * surfaces node, npm, and each known agent's npm-package version in one
+	 * glance. Node and npm are display-only (deliberately no update button —
+	 * updating those mid-session can break things). Agent rows include an
+	 * Update button when outdated.
+	 */
+	private renderSystemStatusSection(containerEl: HTMLElement): void {
+		new Setting(containerEl).setName("System status").setHeading();
+
+		this.renderEnvVersionRow(containerEl, "Node.js", "node");
+		this.renderEnvVersionRow(containerEl, "npm", "npm");
+
+		// Agent rows — Codex omitted intentionally until it's general-use ready.
+		const knownAgents: Array<[string, string]> = [
+			[this.plugin.settings.claude.id, this.plugin.settings.claude.displayName || "Claude Agent"],
+			[this.plugin.settings.gemini.id, this.plugin.settings.gemini.displayName || "Gemini CLI"],
+		];
+		for (const [agentId, displayName] of knownAgents) {
+			if (getNpmPackage(agentId)) {
+				this.renderAgentVersionRow(containerEl, agentId, displayName);
+			}
+		}
+	}
+
+	/**
+	 * Render a read-only version row for node or npm. No update button —
+	 * those are managed outside the plugin and auto-bumping them risks
+	 * breaking the user's wider toolchain.
+	 */
+	private renderEnvVersionRow(
+		containerEl: HTMLElement,
+		label: string,
+		which: "node" | "npm",
+	): void {
+		const setting = new Setting(containerEl)
+			.setName(label)
+			.setDesc("Checking…");
+
+		const check = async () => {
+			const { getNodeVersion, getNpmVersion } = await import(
+				"../../shared/version-checker"
+			);
+			const version =
+				which === "node"
+					? await getNodeVersion(this.plugin.settings.nodePath)
+					: await getNpmVersion(this.plugin.settings.nodePath);
+			if (version) {
+				setting.setDesc(`Installed: ${version}`);
+			} else {
+				setting.setDesc(
+					`Not found. Check the Node.js path setting above.`,
+				);
+			}
+		};
+		void check();
+	}
+
+	/**
+	 * Render a "Version" row showing the agent's installed npm version vs.
+	 * the latest published version, with an "Update" button when outdated.
+	 * Async — kicks off the check on render and updates the row in place.
+	 */
+	private renderAgentVersionRow(
+		sectionEl: HTMLElement,
+		agentId: string,
+		label?: string,
+	): void {
+		const pkg = getNpmPackage(agentId);
+		if (!pkg) return; // Custom agents — nothing to check
+
+		const setting = new Setting(sectionEl)
+			.setName(label ?? "Version")
+			.setDesc("Checking npm registry…");
+
+		type Mode = "check" | "update";
+		let mode: Mode = "check";
+		let btnComp: ButtonComponent | null = null;
+
+		const setButtonState = (label: string, disabled: boolean): void => {
+			if (!btnComp) return;
+			btnComp.setButtonText(label);
+			btnComp.setDisabled(disabled);
+		};
+
+		const runCheck = async (): Promise<void> => {
+			setting.setDesc("Checking npm registry…");
+			setButtonState("Checking…", true);
+			try {
+				const commandPath = this.commandPathForAgent(agentId);
+				const info = await checkAgentVersion(
+					agentId,
+					this.plugin.settings.nodePath,
+					commandPath,
+				);
+
+				// Not installed → offer Install.
+				if (!info.isInstalled) {
+					mode = "update";
+					setting.setDesc(
+						info.latest
+							? `Not installed. Latest: ${info.latest}.`
+							: "Not installed. Could not reach npm registry.",
+					);
+					setButtonState(
+						info.latest ? `Install ${info.latest}` : "Install",
+						false,
+					);
+					return;
+				}
+
+				// Installed but registry unreachable → no actionable state.
+				if (!info.latest) {
+					mode = "check";
+					setting.setDesc(
+						info.installed
+							? `Installed: ${info.installed}. Could not reach npm registry.`
+							: "Installed. Could not reach npm registry.",
+					);
+					setButtonState("Check again", false);
+					return;
+				}
+
+				// Installed + on latest → up to date.
+				if (info.installed && !info.isOutdated) {
+					mode = "check";
+					setting.setDesc(
+						`Installed: ${info.installed} (up to date).`,
+					);
+					setButtonState("Check again", false);
+					return;
+				}
+
+				// Installed + outdated (known): show both versions.
+				// Installed + unknown version: just offer the latest.
+				mode = "update";
+				setting.setDesc(
+					info.installed
+						? `Installed: ${info.installed} → Latest: ${info.latest} — update available.`
+						: `Installed. Latest: ${info.latest} — update available.`,
+				);
+				setButtonState(`Update to ${info.latest}`, false);
+			} catch {
+				mode = "check";
+				setting.setDesc("Version check failed.");
+				setButtonState("Check again", false);
+			}
+		};
+
+		const runUpdate = async (): Promise<void> => {
+			setButtonState("Disconnecting agent…", true);
+			setting.setDesc("Stopping the running agent so npm can replace its files…");
+			// Release file locks the running agent holds on its own binaries.
+			// Without this, Windows fails the npm install with EPERM.
+			await this.plugin.disconnectAgentForFileOperation();
+			setButtonState("Installing…", true);
+			setting.setDesc(`Running: npm install -g ${pkg}@latest --force`);
+			const buf: string[] = [];
+			const childProcess = installAgent(
+				agentId,
+				this.plugin.settings.nodePath,
+				(output) => {
+					buf.push(output);
+				},
+			);
+			if (!childProcess) {
+				new Notice(`Failed to start install for ${pkg}`, 4000);
+				void runCheck();
+				return;
+			}
+			childProcess.on("close", (code) => {
+				if (code === 0) {
+					// Auto-detect the installed binary and save the path to
+					// settings so the version check re-run uses the fast path
+					// (avoids showing "Not installed" on Linux/Mac after install).
+					void this.autoSaveCommandPath(agentId).then(() => void runCheck());
+					// Persistent notice with Restart Now so the user knows the
+					// new binary won't be used until Obsidian re-spawns the agent.
+					const notice = new Notice("", 0);
+					const el = notice.noticeEl;
+					el.createEl("p", {
+						text: `${getAgentDisplayName(agentId)} updated successfully.`,
+						cls: "obsidianaitools-upgrade-title",
+					});
+					el.createEl("p", {
+						text: "Restart Obsidian to activate the new version.",
+						cls: "obsidianaitools-upgrade-body",
+					});
+					const btnRow = el.createDiv({ cls: "obsidianaitools-upgrade-buttons" });
+					const restartBtn = btnRow.createEl("button", {
+						text: "Restart Now",
+						cls: "mod-cta obsidianaitools-upgrade-btn-restart",
+					});
+					restartBtn.addEventListener("click", () => {
+						notice.hide();
+						try {
+							(this.plugin.app as unknown as { commands: { executeCommandById: (id: string) => void } })
+								.commands.executeCommandById("app:reload");
+						} catch {
+							window.location.reload();
+						}
+					});
+					const laterBtn = btnRow.createEl("button", {
+						text: "Later",
+						cls: "obsidianaitools-upgrade-btn-later",
+					});
+					laterBtn.addEventListener("click", () => notice.hide());
+				} else {
+					const full = buf.join("");
+					console.error(
+						`[AgentVersionRow] npm install failed (exit ${code}). Full output:\n${full}`,
+					);
+					const errLines = full
+						.split(/\r?\n/)
+						.map((l) => l.trim())
+						.filter((l) => /^npm (ERR!|error)/i.test(l));
+					const summary = (errLines[0] ?? full).slice(0, 220);
+					new Notice(
+						`Update failed (exit ${code}). ${summary} See dev console for full log.`,
+						10000,
+					);
+					void runCheck(); // re-check on failure too
+				}
+			});
+			childProcess.on("error", (err) => {
+				new Notice(`Update error: ${err.message}`, 6000);
+				void runCheck();
+			});
+		};
+
+		setting.addButton((btn) => {
+			btnComp = btn;
+			btn.setButtonText("Checking…")
+				.setDisabled(true)
+				.onClick(() => {
+					if (mode === "update") void runUpdate();
+					else void runCheck();
+				});
+		});
+
+		// Initial check on render
+		void runCheck();
 	}
 
 	private renderGeminiSettings(sectionEl: HTMLElement) {

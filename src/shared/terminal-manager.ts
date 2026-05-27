@@ -22,12 +22,29 @@ interface TerminalProcess {
 
 export class TerminalManager {
 	private terminals = new Map<string, TerminalProcess>();
+	private activeTimeouts = new Set<number>();
 	private logger: Logger;
 	private plugin: AgentClientPlugin;
 
 	constructor(plugin: AgentClientPlugin) {
 		this.logger = new Logger(plugin);
 		this.plugin = plugin;
+	}
+
+	private trackTimeout(callback: () => void, ms: number): number {
+		const id = window.setTimeout(() => {
+			this.activeTimeouts.delete(id);
+			callback();
+		}, ms);
+		this.activeTimeouts.add(id);
+		return id;
+	}
+
+	private clearTrackedTimeout(id: number | undefined): void {
+		if (id !== undefined) {
+			window.clearTimeout(id);
+			this.activeTimeouts.delete(id);
+		}
 	}
 
 	createTerminal(params: acp.CreateTerminalRequest): string {
@@ -177,7 +194,7 @@ export class TerminalManager {
 
 			// Schedule a fallback cleanup (e.g. 5 minutes) in case the agent never calls releaseTerminal
 			if (!terminal.cleanupTimeout) {
-				terminal.cleanupTimeout = window.setTimeout(() => {
+				terminal.cleanupTimeout = this.trackTimeout(() => {
 					this.logger.log(
 						`[Terminal ${terminalId}] Cleaning up stale terminal via fallback timer`,
 					);
@@ -265,12 +282,10 @@ export class TerminalManager {
 		}
 
 		// Clear any existing fallback timeout before scheduling the shorter grace period
-		if (terminal.cleanupTimeout) {
-			window.clearTimeout(terminal.cleanupTimeout);
-		}
+		this.clearTrackedTimeout(terminal.cleanupTimeout);
 
 		// Schedule cleanup after 30 seconds to allow UI to poll final output
-		terminal.cleanupTimeout = window.setTimeout(() => {
+		terminal.cleanupTimeout = this.trackTimeout(() => {
 			this.logger.log(
 				`[Terminal ${terminalId}] Cleaning up terminal after grace period`,
 			);
@@ -284,9 +299,7 @@ export class TerminalManager {
 		this.logger.log(`Killing ${this.terminals.size} running terminals...`);
 		this.terminals.forEach((terminal, terminalId) => {
 			// Clear cleanup timeout if scheduled
-			if (terminal.cleanupTimeout) {
-				window.clearTimeout(terminal.cleanupTimeout);
-			}
+			this.clearTrackedTimeout(terminal.cleanupTimeout);
 			if (!terminal.exitStatus) {
 				this.logger.log(`Killing terminal ${terminalId}`);
 				this.killTerminal(terminalId);
@@ -294,5 +307,10 @@ export class TerminalManager {
 		});
 		// Clear all terminals
 		this.terminals.clear();
+		// Clear any remaining tracked timeouts as a safety net
+		for (const id of this.activeTimeouts) {
+			window.clearTimeout(id);
+		}
+		this.activeTimeouts.clear();
 	}
 }

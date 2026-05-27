@@ -121,6 +121,35 @@ The `obsidianaitools-onboarding-error-codeblock` CSS class was referenced in the
 
 ---
 
+### 8. React Error Boundary
+
+The entire React tree is mounted via `this.root.render(<ChatComponent/>)`. If any child component throws an unhandled error during render (e.g. malformed diff from agent, unexpected null), the Obsidian view turns completely blank with no recovery.
+
+**Files changed:**
+- `src/components/ErrorBoundary.tsx` (new) — React class component with `getDerivedStateFromError` / `componentDidCatch`
+- `src/components/chat/ChatView.tsx` — wraps `<ChatComponent />` in `<ErrorBoundary>`
+- `styles.css` — fallback UI styling
+
+**Details:**
+- Catches render errors and shows "Something went wrong" with the error message
+- "Restart Session" button resets the error state to recover without reloading Obsidian
+
+---
+
+### 9. Timer cleanup in TerminalManager
+
+When the plugin is disabled/re-enabled quickly, stale `setTimeout` references from terminal cleanup could fire against destroyed objects.
+
+**Files changed:**
+- `src/shared/terminal-manager.ts`
+
+**Details:**
+- Added `activeTimeouts` Set to track all `setTimeout` IDs
+- `trackTimeout()` / `clearTrackedTimeout()` helper methods manage the Set automatically
+- `killAllTerminals()` now clears all tracked timeouts as a safety net after iterating terminals
+
+---
+
 ### Version bump
 
-- **v0.8.9** — All entries above (Linux improvements, nvm support, package rename, UI polish)
+- **v0.8.9** — All entries above (Linux improvements, nvm support, package rename, UI polish, stability fixes)

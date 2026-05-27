@@ -70,10 +70,17 @@ export function installAgent(
 	let command: string;
 	let args: string[];
 
+	// Use `@latest --force` to handle two scenarios:
+	//   - upgrades from older versions / package renames where the old
+	//     install lingers
+	//   - broken installs where npm has the package registered but with
+	//     missing/corrupt metadata (a plain `install` may leave it broken)
+	// --force tells npm to overwrite the existing tree.
+	const pkg = `${getAgentNpmPackage(agentId)}@latest`;
 	if (Platform.isWin) {
 		// On Windows, use cmd.exe with /c (use ComSpec for reliability)
 		command = process.env.ComSpec || "cmd.exe";
-		args = ["/c", `${npmExec} install -g ${getAgentNpmPackage(agentId)}`];
+		args = ["/c", `${npmExec} install -g ${pkg} --force`];
 	} else {
 		// On macOS/Linux, use login shell to get proper PATH.
 		// Also source nvm.sh so GUI apps can find node/npm installed via nvm.
@@ -83,7 +90,7 @@ export function installAgent(
 		args = [
 			"-l",
 			"-c",
-			`${nvmSource}; ${npmExec} install -g ${getAgentNpmPackage(agentId)}`,
+			`${nvmSource}; ${npmExec} install -g ${pkg} --force`,
 		];
 	}
 
