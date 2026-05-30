@@ -11,6 +11,7 @@ import { ChatHeader } from "./ChatHeader";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
 import { AgentUpdateBanner } from "./AgentUpdateBanner";
+import { CompatWarningBanner } from "./CompatWarningBanner";
 import { SessionHistoryModal } from "./SessionHistoryModal";
 import { ConfirmDeleteModal } from "./ConfirmDeleteModal";
 
@@ -1025,27 +1026,22 @@ function ChatComponent({
 			)}
 
 			{compatWarning && !agentUpdate && (
-				<div className="obsidianaitools-compat-warning">
-					<span className="obsidianaitools-compat-warning-text">
-						⚠️ {compatWarning.agentId === settings.claude.id ? "Claude Agent" :
-							compatWarning.agentId === settings.gemini.id ? "Gemini CLI" :
-							compatWarning.agentId} v{compatWarning.installed} is newer than
-						the tested version (v{compatWarning.maxTested}) — if you hit
-						issues, check for a plugin update.
-					</span>
-					<button
-						className="obsidianaitools-compat-warning-dismiss"
-						onClick={() => {
-							// Persist dismiss so it won't show again for this version
-							plugin.settings.compatWarningDismissed[compatWarning.agentId] =
-								compatWarning.installed;
-							void plugin.saveSettings();
-							setCompatWarning(null);
-						}}
-					>
-						Dismiss
-					</button>
-				</div>
+				<CompatWarningBanner
+					plugin={plugin}
+					agentId={compatWarning.agentId}
+					installedVersion={compatWarning.installed}
+					maxTestedVersion={compatWarning.maxTested}
+					nodePath={settings.nodePath}
+					onDismiss={() => {
+						// Persist dismiss so it won't show again for this version
+						plugin.settings.compatWarningDismissed[
+							compatWarning.agentId
+						] = compatWarning.installed;
+						void plugin.saveSettings();
+						setCompatWarning(null);
+					}}
+					onResolved={() => setCompatWarning(null)}
+				/>
 			)}
 
 			<ChatMessages

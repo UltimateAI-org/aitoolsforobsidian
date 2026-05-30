@@ -12,7 +12,11 @@ import type { CustomAgentSettings, AgentEnvVar } from "../../plugin";
 import { normalizeEnvVars } from "../../shared/settings-utils";
 import { detectNodePath, detectAgentPath, validatePath } from "../../shared/path-detector";
 import { checkAgentVersion, getNpmPackage } from "../../shared/version-checker";
-import { installAgent, getAgentDisplayName } from "../../shared/agent-installer";
+import {
+	installAgent,
+	getAgentDisplayName,
+	showAgentRestartNotice,
+} from "../../shared/agent-installer";
 import { ErrorLogModal } from "./ErrorLogModal";
 
 export class AgentClientSettingTab extends PluginSettingTab {
@@ -960,6 +964,10 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		type Mode = "check" | "update";
 		let mode: Mode = "check";
 		let btnComp: ButtonComponent | null = null;
+		let rollbackBtnComp: ButtonComponent | null = null;
+		// Captured from the most recent runCheck so the rollback handler knows
+		// which version to pin without re-fetching.
+		let currentMaxTested: string | null = null;
 
 		const setButtonState = (label: string, disabled: boolean): void => {
 			if (!btnComp) return;
@@ -967,9 +975,26 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			btnComp.setDisabled(disabled);
 		};
 
+		const setRollbackState = (
+			visible: boolean,
+			targetVersion: string | null,
+			disabled: boolean,
+		): void => {
+			if (!rollbackBtnComp) return;
+			rollbackBtnComp.buttonEl.classList.toggle(
+				"obsidianaitools-hidden",
+				!visible,
+			);
+			if (visible && targetVersion) {
+				rollbackBtnComp.setButtonText(`Roll back to v${targetVersion}`);
+			}
+			rollbackBtnComp.setDisabled(disabled);
+		};
+
 		const runCheck = async (): Promise<void> => {
 			setting.setDesc("Checking npm registry…");
 			setButtonState("Checking…", true);
+			setRollbackState(false, null, false);
 			try {
 				const commandPath = this.commandPathForAgent(agentId);
 				const info = await checkAgentVersion(
@@ -977,8 +1002,14 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					this.plugin.settings.nodePath,
 					commandPath,
 				);
+				currentMaxTested = info.maxTestedVersion;
+				const aboveTested =
+					info.isAboveTestedVersion && info.maxTestedVersion;
+				const aboveTestedSuffix = aboveTested
+					? ` Newer than tested (v${info.maxTestedVersion}).`
+					: "";
 
-				// Not installed → offer Install.
+				// Not installed → offer Install. (Rollback is meaningless here.)
 				if (!info.isInstalled) {
 					mode = "update";
 					setting.setDesc(
@@ -997,11 +1028,17 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				if (!info.latest) {
 					mode = "check";
 					setting.setDesc(
-						info.installed
+						(info.installed
 							? `Installed: ${info.installed}. Could not reach npm registry.`
-							: "Installed. Could not reach npm registry.",
+							: "Installed. Could not reach npm registry.") +
+							aboveTestedSuffix,
 					);
 					setButtonState("Check again", false);
+					setRollbackState(
+						!!aboveTested,
+						info.maxTestedVersion,
+						false,
+					);
 					return;
 				}
 
@@ -1009,9 +1046,14 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				if (info.installed && !info.isOutdated) {
 					mode = "check";
 					setting.setDesc(
-						`Installed: ${info.installed} (up to date).`,
+						`Installed: ${info.installed} (up to date).${aboveTestedSuffix}`,
 					);
 					setButtonState("Check again", false);
+					setRollbackState(
+						!!aboveTested,
+						info.maxTestedVersion,
+						false,
+					);
 					return;
 				}
 
@@ -1019,15 +1061,18 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				// Installed + unknown version: just offer the latest.
 				mode = "update";
 				setting.setDesc(
-					info.installed
+					(info.installed
 						? `Installed: ${info.installed} → Latest: ${info.latest} — update available.`
-						: `Installed. Latest: ${info.latest} — update available.`,
+						: `Installed. Latest: ${info.latest} — update available.`) +
+						aboveTestedSuffix,
 				);
 				setButtonState(`Update to ${info.latest}`, false);
+				setRollbackState(!!aboveTested, info.maxTestedVersion, false);
 			} catch {
 				mode = "check";
 				setting.setDesc("Version check failed.");
 				setButtonState("Check again", false);
+				setRollbackState(false, null, false);
 			}
 		};
 
@@ -1060,35 +1105,10 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					void this.autoSaveCommandPath(agentId).then(() => void runCheck());
 					// Persistent notice with Restart Now so the user knows the
 					// new binary won't be used until Obsidian re-spawns the agent.
-					const notice = new Notice("", 0);
-					const el = notice.noticeEl;
-					el.createEl("p", {
-						text: `${getAgentDisplayName(agentId)} updated successfully.`,
-						cls: "obsidianaitools-upgrade-title",
-					});
-					el.createEl("p", {
-						text: "Restart Obsidian to activate the new version.",
-						cls: "obsidianaitools-upgrade-body",
-					});
-					const btnRow = el.createDiv({ cls: "obsidianaitools-upgrade-buttons" });
-					const restartBtn = btnRow.createEl("button", {
-						text: "Restart Now",
-						cls: "mod-cta obsidianaitools-upgrade-btn-restart",
-					});
-					restartBtn.addEventListener("click", () => {
-						notice.hide();
-						try {
-							(this.plugin.app as unknown as { commands: { executeCommandById: (id: string) => void } })
-								.commands.executeCommandById("app:reload");
-						} catch {
-							window.location.reload();
-						}
-					});
-					const laterBtn = btnRow.createEl("button", {
-						text: "Later",
-						cls: "obsidianaitools-upgrade-btn-later",
-					});
-					laterBtn.addEventListener("click", () => notice.hide());
+					showAgentRestartNotice(
+						this.plugin,
+						`${getAgentDisplayName(agentId)} updated successfully.`,
+					);
 				} else {
 					const full = buf.join("");
 					console.error(
@@ -1112,6 +1132,66 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			});
 		};
 
+		const runRollback = async (): Promise<void> => {
+			const target = currentMaxTested;
+			if (!target) return;
+			setRollbackState(true, target, true);
+			setButtonState("Rolling back…", true);
+			setting.setDesc(
+				`Stopping the running agent so npm can replace its files…`,
+			);
+			await this.plugin.disconnectAgentForFileOperation();
+			setting.setDesc(
+				`Running: npm install -g ${pkg}@${target} --force`,
+			);
+			const buf: string[] = [];
+			const childProcess = installAgent(
+				agentId,
+				this.plugin.settings.nodePath,
+				(output) => {
+					buf.push(output);
+				},
+				target,
+			);
+			if (!childProcess) {
+				new Notice(`Failed to start rollback for ${pkg}`, 4000);
+				void runCheck();
+				return;
+			}
+			childProcess.on("close", (code) => {
+				if (code === 0) {
+					// Same post-install dance as update: re-detect the path and
+					// re-run the check so the row reflects the new state.
+					void this.autoSaveCommandPath(agentId).then(
+						() => void runCheck(),
+					);
+					showAgentRestartNotice(
+						this.plugin,
+						`${getAgentDisplayName(agentId)} rolled back to v${target}.`,
+					);
+				} else {
+					const full = buf.join("");
+					console.error(
+						`[AgentVersionRow] rollback failed (exit ${code}). Full output:\n${full}`,
+					);
+					const errLines = full
+						.split(/\r?\n/)
+						.map((l) => l.trim())
+						.filter((l) => /^npm (ERR!|error)/i.test(l));
+					const summary = (errLines[0] ?? full).slice(0, 220);
+					new Notice(
+						`Rollback failed (exit ${code}). ${summary} See dev console for full log.`,
+						10000,
+					);
+					void runCheck();
+				}
+			});
+			childProcess.on("error", (err) => {
+				new Notice(`Rollback error: ${err.message}`, 6000);
+				void runCheck();
+			});
+		};
+
 		setting.addButton((btn) => {
 			btnComp = btn;
 			btn.setButtonText("Checking…")
@@ -1120,6 +1200,17 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					if (mode === "update") void runUpdate();
 					else void runCheck();
 				});
+		});
+
+		// Secondary action — only visible when installed version is above
+		// the version this plugin release was tested against. Lets users
+		// recover from a known-untested agent version without leaving
+		// settings (the chat banner's dismiss state can hide its own
+		// rollback button, so this is the discoverable home).
+		setting.addButton((btn) => {
+			rollbackBtnComp = btn;
+			btn.setButtonText("Roll back").onClick(() => void runRollback());
+			btn.buttonEl.classList.add("obsidianaitools-hidden");
 		});
 
 		// Initial check on render

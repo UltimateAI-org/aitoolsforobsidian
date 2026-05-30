@@ -524,32 +524,60 @@ If your plugin does not need CSS, delete this file.
 .obsidianaitools-compat-warning {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	padding: 6px 12px;
-	background-color: var(--background-modifier-warning, rgba(255,200,0,0.12));
-	border-bottom: 1px solid var(--background-modifier-border);
-	font-size: 12px;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px 12px;
+	margin: 4px 8px 8px;
+	background-color: var(--background-modifier-hover);
+	border: 1px solid var(--background-modifier-border);
+	border-left: 3px solid var(--text-warning, #e0ac00);
+	border-radius: 6px;
+	font-size: 13px;
 }
 
 .obsidianaitools-compat-warning-text {
 	flex: 1;
-	color: var(--text-warning, var(--text-muted));
+	min-width: 0;
+	color: var(--text-normal);
 }
 
-.obsidianaitools-compat-warning-dismiss {
-	padding: 3px 8px;
-	font-size: 12px;
-	background: transparent;
-	color: var(--text-muted);
-	border-radius: 4px;
-	cursor: pointer;
-	white-space: nowrap;
+.obsidianaitools-compat-warning-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
 	flex-shrink: 0;
 }
 
-.obsidianaitools-compat-warning-dismiss:hover {
-	background: var(--background-modifier-hover);
+.obsidianaitools-compat-warning-rollback,
+.obsidianaitools-compat-warning-dismiss {
+	padding: 4px 10px;
+	font-size: 12px;
+	border-radius: 4px;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.obsidianaitools-compat-warning-rollback {
+	font-weight: 500;
+	/* bg/color/hover handled by Obsidian's mod-cta class for consistent
+	   contrast across themes */
+}
+
+.obsidianaitools-compat-warning-dismiss {
+	background-color: transparent;
+	color: var(--text-muted);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.obsidianaitools-compat-warning-dismiss:hover:not(:disabled) {
+	background-color: var(--background-modifier-hover);
 	color: var(--text-normal);
+}
+
+.obsidianaitools-compat-warning-rollback:disabled,
+.obsidianaitools-compat-warning-dismiss:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
 }
 
 /* Agent update banner — shows under the header when active agent has a

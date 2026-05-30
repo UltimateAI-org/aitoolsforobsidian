@@ -1,7 +1,8 @@
 import { spawn, ChildProcess } from "child_process";
-import { Platform } from "obsidian";
+import { Notice, Platform } from "obsidian";
 import { getEnhancedWindowsEnv } from "./windows-env";
 import { resolveCommandDirectory } from "./path-utils";
+import type AgentClientPlugin from "../plugin";
 
 /**
  * Agent installer for ACP-compatible agents.
@@ -53,6 +54,7 @@ export function installAgent(
 	agentId: string,
 	nodePath: string,
 	onOutput?: (data: string) => void,
+	version?: string | null,
 ): ChildProcess | null {
 	const installCommand = getAgentInstallCommand(agentId);
 
@@ -70,13 +72,16 @@ export function installAgent(
 	let command: string;
 	let args: string[];
 
-	// Use `@latest --force` to handle two scenarios:
+	// Use `--force` to handle several scenarios:
 	//   - upgrades from older versions / package renames where the old
 	//     install lingers
 	//   - broken installs where npm has the package registered but with
 	//     missing/corrupt metadata (a plain `install` may leave it broken)
-	// --force tells npm to overwrite the existing tree.
-	const pkg = `${getAgentNpmPackage(agentId)}@latest`;
+	//   - rollbacks to a pinned older version (npm overwrites the newer tree)
+	// --force tells npm to overwrite the existing tree. When `version` is
+	// omitted we target `@latest`; otherwise we pin the exact version.
+	const tag = version && version.trim() ? version.trim() : "latest";
+	const pkg = `${getAgentNpmPackage(agentId)}@${tag}`;
 	if (Platform.isWin) {
 		// On Windows, use cmd.exe with /c (use ComSpec for reliability)
 		command = process.env.ComSpec || "cmd.exe";
@@ -159,4 +164,43 @@ export async function isAgentInstalled(agentId: string): Promise<boolean> {
 	const { detectAgentPath } = await import("./path-detector");
 	const result = detectAgentPath(agentId);
 	return result.path !== null;
+}
+
+/**
+ * Show a persistent Notice telling the user a newly installed/rolled-back
+ * agent binary won't be used until Obsidian re-spawns the agent, with a
+ * one-click "Restart Now". Shared by the update and rollback flows so the
+ * post-install UX stays identical.
+ */
+export function showAgentRestartNotice(
+	plugin: AgentClientPlugin,
+	titleText: string,
+	bodyText = "Restart Obsidian to activate the new version.",
+): void {
+	const notice = new Notice("", 0);
+	const el = notice.noticeEl;
+	el.createEl("p", { text: titleText, cls: "obsidianaitools-upgrade-title" });
+	el.createEl("p", { text: bodyText, cls: "obsidianaitools-upgrade-body" });
+	const btnRow = el.createDiv({ cls: "obsidianaitools-upgrade-buttons" });
+	const restartBtn = btnRow.createEl("button", {
+		text: "Restart Now",
+		cls: "mod-cta obsidianaitools-upgrade-btn-restart",
+	});
+	restartBtn.addEventListener("click", () => {
+		notice.hide();
+		try {
+			(
+				plugin.app as unknown as {
+					commands: { executeCommandById: (id: string) => void };
+				}
+			).commands.executeCommandById("app:reload");
+		} catch {
+			window.location.reload();
+		}
+	});
+	const laterBtn = btnRow.createEl("button", {
+		text: "Later",
+		cls: "obsidianaitools-upgrade-btn-later",
+	});
+	laterBtn.addEventListener("click", () => notice.hide());
 }
