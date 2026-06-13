@@ -46,3 +46,6 @@ docs/.vitepress/cache/
 # Personal developer logs
 dev/
 /.claude
+
+# PR draft scratch file — kept locally as a per-release template
+PR_DRAFT.md
