@@ -45,7 +45,7 @@ const NPM_PACKAGES: Record<string, string> = {
  * Leaving an agent out means no compatibility warning is shown for it.
  */
 export const AGENT_MAX_TESTED_VERSIONS: Record<string, string> = {
-	"claude-code-acp": "0.44.0",
+	"claude-code-acp": "0.50.0",
 	"gemini-cli": "0.43.0",
 };
 
