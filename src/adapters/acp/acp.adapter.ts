@@ -38,7 +38,10 @@ import {
 	convertWindowsPathToWsl,
 } from "../../shared/wsl-utils";
 import { resolveCommandDirectory } from "../../shared/path-utils";
-import { getEnhancedWindowsEnv } from "../../shared/windows-env";
+import {
+	getEnhancedWindowsEnv,
+	prependToPath,
+} from "../../shared/windows-env";
 import { escapeShellArgWindows } from "../../shared/shell-utils";
 import {
 	installAgent,
@@ -101,7 +104,6 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 	private currentConfig: AgentConfig | null = null;
 	private isInitializedFlag = false;
 	private currentAgentId: string | null = null;
-	private autoAllowPermissions = false;
 
 	// IAcpClient implementation properties
 	private terminalManager: TerminalManager;
@@ -172,9 +174,6 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 		}
 
 		this.currentConfig = config;
-
-		// Update auto-allow permissions from plugin settings
-		this.autoAllowPermissions = this.plugin.settings.autoAllowPermissions;
 
 		// Check if command is configured
 		if (!config.command || config.command.trim().length === 0) {
@@ -276,9 +275,7 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 			);
 			if (nodeDir) {
 				const separator = Platform.isWin ? ";" : ":";
-				baseEnv.PATH = baseEnv.PATH
-					? `${nodeDir}${separator}${baseEnv.PATH}`
-					: nodeDir;
+				prependToPath(baseEnv, nodeDir, separator);
 			}
 		}
 
@@ -306,6 +303,9 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 				config.workingDirectory,
 				this.plugin.settings.windowsWslDistribution,
 				nodeDir,
+				// Agent command is a single executable path — escape it so
+				// paths with spaces survive the bash -c wrapping.
+				true,
 			);
 			spawnCommand = wslWrapped.command;
 			spawnArgs = wslWrapped.args;
@@ -635,8 +635,19 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 				}, 30000);
 			});
 
-			const initResult = await Promise.race([initPromise, timeoutPromise]);
-			clearTimeout(initTimeoutId!);
+			// If the timeout wins the race, a later rejection of initPromise
+			// would otherwise surface as an unhandled rejection.
+			initPromise.catch(() => {});
+
+			let initResult: Awaited<typeof initPromise>;
+			try {
+				initResult = await Promise.race([initPromise, timeoutPromise]);
+			} finally {
+				// Always clear the timer: if init fails fast, a stray timeout
+				// would reject the (already-raced) promise 30s later as an
+				// unhandled rejection.
+				clearTimeout(initTimeoutId!);
+			}
 
 			// Note: do NOT call connection.authenticate(gateway) here. When
 			// gateway auth is configured the agent forces ANTHROPIC_AUTH_TOKEN=" "
@@ -1281,7 +1292,7 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 				if (Platform.isWin) {
 					env = getEnhancedWindowsEnv(env);
 					if (nodeDir) {
-						env.PATH = `${nodeDir};${env.PATH ?? ""}`;
+						prependToPath(env, nodeDir, ";");
 					}
 					spawnCommand = "where.exe";
 					spawnArgs = [command];
@@ -1557,28 +1568,38 @@ To fix:
 	): Promise<acp.RequestPermissionResponse> {
 		this.logger.log("[AcpAdapter] Permission request received:", params);
 
-		// If auto-allow is enabled, automatically approve the first allow option
-		if (this.autoAllowPermissions) {
-			const allowOption =
-				params.options.find(
-					(option) =>
-						option.kind === "allow_once" ||
-						option.kind === "allow_always" ||
-						(!option.kind &&
-							option.name.toLowerCase().includes("allow")),
-				) || params.options[0]; // fallback to first option
-
-			this.logger.log(
-				"[AcpAdapter] Auto-allowing permission request:",
-				allowOption,
+		// If auto-allow is enabled, automatically approve the first allow
+		// option. Read the setting live so toggling it mid-session applies
+		// immediately (it used to be snapshotted at initialize()).
+		if (this.plugin.settings.autoAllowPermissions) {
+			const allowOption = params.options.find(
+				(option) =>
+					option.kind === "allow_once" ||
+					option.kind === "allow_always" ||
+					(!option.kind &&
+						option.name.toLowerCase().includes("allow")),
 			);
 
-			return Promise.resolve({
-				outcome: {
-					outcome: "selected",
-					optionId: allowOption.optionId,
-				},
-			});
+			// Only auto-respond when a genuine allow option exists; otherwise
+			// fall through to the manual permission UI. Auto-selecting
+			// options[0] could auto-REJECT (or crash on an empty list).
+			if (allowOption) {
+				this.logger.log(
+					"[AcpAdapter] Auto-allowing permission request:",
+					allowOption,
+				);
+
+				return Promise.resolve({
+					outcome: {
+						outcome: "selected",
+						optionId: allowOption.optionId,
+					},
+				});
+			}
+
+			this.logger.log(
+				"[AcpAdapter] Auto-allow enabled but no allow option found; showing manual UI",
+			);
 		}
 
 		// Generate unique ID for this permission request

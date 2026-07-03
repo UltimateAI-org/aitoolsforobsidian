@@ -665,6 +665,30 @@ async function handleSendError(
 		};
 	}
 
+	// Only errors that actually look auth-related go down the authenticate-
+	// and-resend path. Re-sending on arbitrary errors (network blips, agent
+	// crashes mid-prompt) executes the prompt twice — including any tool side
+	// effects — and mislabels the failure as "Authentication Required".
+	if (!isAuthErrorLike(error)) {
+		return {
+			success: false,
+			displayContent,
+			agentContent,
+			error: {
+				id: crypto.randomUUID(),
+				category: "communication",
+				severity: "error",
+				title: "Message Send Failed",
+				message: `Failed to send message: ${extractErrorMessage(error)}`,
+				suggestion:
+					"Please try again. If the problem persists, check the error log in settings.",
+				occurredAt: new Date(),
+				sessionId,
+				originalError: error,
+			},
+		};
+	}
+
 	// Check if authentication is required
 	if (!authMethods || authMethods.length === 0) {
 		return {
@@ -721,6 +745,64 @@ async function handleSendError(
 			originalError: error,
 		},
 	};
+}
+
+/** Extract a human-readable message from an unknown error value. */
+function extractErrorMessage(error: unknown): string {
+	if (error instanceof Error) {
+		return error.message;
+	}
+	if (
+		error &&
+		typeof error === "object" &&
+		"message" in error &&
+		typeof (error as { message: unknown }).message === "string"
+	) {
+		return (error as { message: string }).message;
+	}
+	return String(error);
+}
+
+/**
+ * Check if an error plausibly indicates an authentication problem.
+ *
+ * Matches:
+ * - JSON-RPC code -32000 (ACP `auth_required`)
+ * - HTTP-style 401 codes
+ * - Messages/details mentioning authentication/authorization/API keys
+ */
+function isAuthErrorLike(error: unknown): boolean {
+	if (!error || typeof error !== "object") {
+		return false;
+	}
+
+	const errObj = error as Record<string, unknown>;
+
+	if (errObj.code === -32000 || errObj.code === 401) {
+		return true;
+	}
+
+	const texts: string[] = [];
+	if (typeof errObj.message === "string") {
+		texts.push(errObj.message);
+	}
+	const data = errObj.data;
+	if (
+		data &&
+		typeof data === "object" &&
+		"details" in data &&
+		typeof (data as { details: unknown }).details === "string"
+	) {
+		texts.push((data as { details: string }).details);
+	}
+
+	const combined = texts.join(" ").toLowerCase();
+	return (
+		combined.includes("auth") ||
+		combined.includes("unauthorized") ||
+		combined.includes("api key") ||
+		combined.includes("login")
+	);
 }
 
 /**

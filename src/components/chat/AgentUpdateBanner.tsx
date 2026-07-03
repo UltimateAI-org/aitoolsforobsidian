@@ -35,6 +35,12 @@ export interface AgentUpdateBannerProps {
 	installedVersion: string | null;
 	latestVersion: string;
 	nodePath: string;
+	/** True when latestVersion is newer than the highest version this plugin
+	 *  release was tested with — the banner switches to cautious wording and
+	 *  an "Update anyway" button instead of quietly nudging users onto it. */
+	untested?: boolean;
+	/** The highest tested version, shown in the untested wording. */
+	maxTestedVersion?: string | null;
 	onDismiss: () => void;
 	onUpdated: () => void;
 }
@@ -51,6 +57,8 @@ export function AgentUpdateBanner({
 	installedVersion,
 	latestVersion,
 	nodePath,
+	untested = false,
+	maxTestedVersion,
 	onDismiss,
 	onUpdated,
 }: AgentUpdateBannerProps) {
@@ -157,9 +165,15 @@ export function AgentUpdateBanner({
 	return (
 		<div className="obsidianaitools-agent-update-banner">
 			<span className="obsidianaitools-agent-update-banner-text">
-				{installedVersion
-					? `${displayName} update available: ${installedVersion} → ${latestVersion}`
-					: `${displayName}: update available — v${latestVersion}`}
+				{untested
+					? `${displayName} v${latestVersion} is available but not yet tested with this plugin${
+							maxTestedVersion
+								? ` (tested up to v${maxTestedVersion})`
+								: ""
+						}`
+					: installedVersion
+						? `${displayName} update available: ${installedVersion} → ${latestVersion}`
+						: `${displayName}: update available — v${latestVersion}`}
 			</span>
 			<div className="obsidianaitools-agent-update-banner-actions">
 				<button
@@ -167,7 +181,11 @@ export function AgentUpdateBanner({
 					onClick={() => void handleUpdate()}
 					disabled={installing}
 				>
-					{installing ? "Updating…" : "Update"}
+					{installing
+						? "Updating…"
+						: untested
+							? "Update anyway"
+							: "Update"}
 				</button>
 				<button
 					className="obsidianaitools-agent-update-banner-dismiss"

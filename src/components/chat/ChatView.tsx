@@ -220,10 +220,9 @@ function ChatComponent({
 		agentId: string;
 		installed: string | null;
 		latest: string;
+		untested: boolean;
+		maxTested: string | null;
 	} | null>(null);
-	const [dismissedAgentUpdates, setDismissedAgentUpdates] = useState<
-		Set<string>
-	>(new Set());
 	const [compatWarning, setCompatWarning] = useState<{
 		agentId: string;
 		installed: string;
@@ -278,8 +277,14 @@ function ChatComponent({
 			const isAgentSwitch =
 				requestedAgentId && requestedAgentId !== session.agentId;
 
-			// Skip if already empty AND not switching agents
-			if (messages.length === 0 && !isAgentSwitch) {
+			// Skip if already an empty, healthy session and not switching
+			// agents. When the session is in an error/disconnected state,
+			// "New chat" doubles as a retry even with no messages.
+			if (
+				messages.length === 0 &&
+				!isAgentSwitch &&
+				session.state === "ready"
+			) {
 				new Notice("[AI Tools] Already a new session");
 				return;
 			}
@@ -613,19 +618,6 @@ function ChatComponent({
 		void agentSession.createSession();
 	}, [session.agentId, agentSession.createSession, settings.hasCompletedOnboarding]);
 
-	// Reload session when critical settings change (apiKey, baseUrl, model)
-	useEffect(() => {
-		if (session.state === "ready") {
-			logger.log("[Debug] Settings changed, reloading session...");
-			void agentSession.createSession();
-		}
-	}, [
-		settings.apiKey,
-		settings.baseUrl,
-		settings.model,
-		agentSession.createSession,
-	]);
-
 	// Refs for cleanup (to access latest values in cleanup function)
 	const messagesRef = useRef(messages);
 	const sessionRef = useRef(session);
@@ -647,6 +639,33 @@ function ChatComponent({
 	handleSessionUpdateRef.current = chat.handleSessionUpdate;
 	updateAvailableCommandsRef.current = agentSession.updateAvailableCommands;
 	updateCurrentModeRef.current = agentSession.updateCurrentMode;
+
+	// Reload session when API settings change (apiKey, baseUrl, model).
+	// Debounced: the settings tab saves on every keystroke, and applying a new
+	// API key respawns the agent process (env vars only apply at spawn) — do
+	// that once after the user stops typing, not per keystroke. Skips the
+	// mount run so vault startup doesn't trigger a redundant reload.
+	const skipInitialSettingsReloadRef = useRef(true);
+	useEffect(() => {
+		if (skipInitialSettingsReloadRef.current) {
+			skipInitialSettingsReloadRef.current = false;
+			return;
+		}
+		const timer = window.setTimeout(() => {
+			const state = sessionRef.current.state;
+			if (state === "ready" || state === "error") {
+				logger.log("[Debug] API settings changed, reloading session...");
+				void agentSession.createSession();
+			}
+		}, 2000);
+		return () => window.clearTimeout(timer);
+	}, [
+		settings.apiKey,
+		settings.baseUrl,
+		settings.model,
+		agentSession.createSession,
+		logger,
+	]);
 
 	// Cleanup on unmount only - auto-export and close session
 	useEffect(() => {
@@ -785,13 +804,19 @@ function ChatComponent({
 					// version but a latest exists — the user can still choose to
 					// update). Skip if not installed (settings handles install)
 					// or if the user already dismissed this latest version.
-					const dismissKey = info.latest
-						? `${activeAgentId}@${info.latest}`
-						: "";
+					// Dismissals are persisted per version, so someone who
+					// deliberately rolled back after a broken agent release
+					// dismisses its banner exactly once — the next release
+					// shows a fresh banner. Versions above the tested ceiling
+					// still show, but flagged as untested ("Update anyway").
+					const alreadyDismissed =
+						!!info.latest &&
+						settings.agentUpdateDismissed[activeAgentId] ===
+							info.latest;
 					const shouldShow =
 						info.isInstalled &&
 						!!info.latest &&
-						!dismissedAgentUpdates.has(dismissKey) &&
+						!alreadyDismissed &&
 						// Only show if outdated, OR if we can't tell (no installed
 						// version detected — being honest that we're unsure).
 						(info.isOutdated || !info.installed);
@@ -801,6 +826,8 @@ function ChatComponent({
 							agentId: activeAgentId,
 							installed: info.installed,
 							latest: info.latest,
+							untested: info.latestAboveTested,
+							maxTested: info.maxTestedVersion,
 						});
 					} else {
 						setAgentUpdate(null);
@@ -847,7 +874,7 @@ function ChatComponent({
 		settings.gemini.id,
 		settings.gemini.command,
 		settings.nodePath,
-		dismissedAgentUpdates,
+		settings.agentUpdateDismissed,
 	]);
 
 	// ============================================================
@@ -1009,14 +1036,18 @@ function ChatComponent({
 					installedVersion={agentUpdate.installed}
 					latestVersion={agentUpdate.latest}
 					nodePath={settings.nodePath}
+					untested={agentUpdate.untested}
+					maxTestedVersion={agentUpdate.maxTested}
 					onDismiss={() => {
-						setDismissedAgentUpdates(
-							(prev) =>
-								new Set([
-									...prev,
-									`${agentUpdate.agentId}@${agentUpdate.latest}`,
-								]),
-						);
+						// Persist per version so the banner never re-nags for
+						// this release (survives view reopen and restarts)
+						void plugin.saveSettingsAndNotify({
+							...plugin.settings,
+							agentUpdateDismissed: {
+								...plugin.settings.agentUpdateDismissed,
+								[agentUpdate.agentId]: agentUpdate.latest,
+							},
+						});
 						setAgentUpdate(null);
 					}}
 					onUpdated={() => {
@@ -1034,10 +1065,14 @@ function ChatComponent({
 					nodePath={settings.nodePath}
 					onDismiss={() => {
 						// Persist dismiss so it won't show again for this version
-						plugin.settings.compatWarningDismissed[
-							compatWarning.agentId
-						] = compatWarning.installed;
-						void plugin.saveSettings();
+						void plugin.saveSettingsAndNotify({
+							...plugin.settings,
+							compatWarningDismissed: {
+								...plugin.settings.compatWarningDismissed,
+								[compatWarning.agentId]:
+									compatWarning.installed,
+							},
+						});
 						setCompatWarning(null);
 					}}
 					onResolved={() => setCompatWarning(null)}

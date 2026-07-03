@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type {
 	ChatSession,
 	SessionState,
@@ -275,6 +275,24 @@ function buildAgentConfigWithApiKey(
 	};
 }
 
+/**
+ * Signature of the parts of an AgentConfig that only take effect at process
+ * spawn time (command, args, env — including injected API key/base URL).
+ * If this changes, the agent process must be re-initialized: creating a new
+ * session on the old process would silently keep the old environment.
+ */
+function getSpawnConfigSignature(config: {
+	command: string;
+	args: string[];
+	env: Record<string, string>;
+}): string {
+	return JSON.stringify({
+		command: config.command,
+		args: config.args,
+		env: config.env,
+	});
+}
+
 // ============================================================================
 // Initial State
 // ============================================================================
@@ -337,6 +355,11 @@ export function useAgentSession(
 
 	// Error state
 	const [errorInfo, setErrorInfo] = useState<SessionErrorInfo | null>(null);
+
+	// Spawn-config signature of the last successful initialize(). Compared
+	// against the current config so env changes (API key, base URL) force a
+	// process re-initialization instead of reusing the old environment.
+	const lastInitSignatureRef = useRef<string | null>(null);
 
 	// Register error callback immediately (not in useEffect) to catch errors during initial createSession
 	useEffect(() => {
@@ -414,10 +437,14 @@ export function useAgentSession(
 			);
 
 			// Check if initialization is needed
-			// Only initialize if agent is not initialized OR agent ID has changed
+			// Initialize if the agent is not initialized, the agent ID changed,
+			// or the spawn config (command/args/env, incl. API key) changed —
+			// env vars only apply at process spawn.
+			const configSignature = getSpawnConfigSignature(agentConfig);
 			const needsInitialize =
 				!agentClient.isInitialized() ||
-				agentClient.getCurrentAgentId() !== activeAgentId;
+				agentClient.getCurrentAgentId() !== activeAgentId ||
+				lastInitSignatureRef.current !== configSignature;
 
 			let authMethods: AuthenticationMethod[] = [];
 			let promptCapabilities:
@@ -456,6 +483,7 @@ export function useAgentSession(
 				promptCapabilities = initResult.promptCapabilities;
 				agentCapabilities = initResult.agentCapabilities;
 				agentInfo = initResult.agentInfo;
+				lastInitSignatureRef.current = configSignature;
 			}
 
 			// Create new session (lightweight operation)
@@ -552,10 +580,12 @@ export function useAgentSession(
 					workingDirectory,
 				);
 
-				// Check if initialization is needed
+				// Check if initialization is needed (same rules as createSession)
+				const configSignature = getSpawnConfigSignature(agentConfig);
 				const needsInitialize =
 					!agentClient.isInitialized() ||
-					agentClient.getCurrentAgentId() !== activeAgentId;
+					agentClient.getCurrentAgentId() !== activeAgentId ||
+					lastInitSignatureRef.current !== configSignature;
 
 				let authMethods: AuthenticationMethod[] = [];
 				let promptCapabilities:
@@ -592,6 +622,7 @@ export function useAgentSession(
 					authMethods = initResult.authMethods;
 					promptCapabilities = initResult.promptCapabilities;
 					agentCapabilities = initResult.agentCapabilities;
+					lastInitSignatureRef.current = configSignature;
 				}
 
 				// Load the session

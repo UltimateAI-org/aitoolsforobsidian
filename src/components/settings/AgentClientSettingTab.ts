@@ -18,6 +18,7 @@ import {
 	showAgentRestartNotice,
 } from "../../shared/agent-installer";
 import { ErrorLogModal } from "./ErrorLogModal";
+import { OnboardingModal } from "../OnboardingModal";
 
 export class AgentClientSettingTab extends PluginSettingTab {
 	plugin: AgentClientPlugin;
@@ -27,6 +28,18 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	constructor(app: App, plugin: AgentClientPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
+	}
+
+	/**
+	 * Persist settings AND notify the settings store.
+	 *
+	 * Never call plugin.saveSettings() directly from this tab: it skips the
+	 * store notification, so React (ChatView, useSettings) keeps rendering a
+	 * stale snapshot and settings-driven effects (e.g. API key reload) never
+	 * fire.
+	 */
+	private async saveAndNotify(): Promise<void> {
+		await this.plugin.saveSettingsAndNotify({ ...this.plugin.settings });
 	}
 
 	display(): void {
@@ -51,6 +64,18 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			href: "https://github.com/UltimateAI-org/aitoolsforobsidian",
 		});
 		docContainer.createSpan({ text: "." });
+
+		// Escape hatch for the auto-dismissed onboarding modal
+		new Setting(containerEl)
+			.setName("Setup wizard")
+			.setDesc(
+				"Re-run the first-time setup (choose agent, API key, install).",
+			)
+			.addButton((button) =>
+				button.setButtonText("Re-run setup").onClick(() => {
+					new OnboardingModal(this.app, this.plugin).open();
+				}),
+			);
 
 		// ─────────────────────────────────────────────────────────────────────
 		// Top-level settings (no header)
@@ -83,7 +108,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								new Notice(`Warning: ${validation.error}`, 3000);
 							}
 						}
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					});
 			})
 			.addButton((button) =>
@@ -96,7 +121,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							const validation = validatePath(result.path);
 							if (validation.valid) {
 								this.plugin.settings.nodePath = result.path;
-								await this.plugin.saveSettings();
+								await this.saveAndNotify();
 								this.display(); // Refresh to show new value
 								new Notice(`Node.js found: ${result.path}`, 3000);
 							} else {
@@ -132,7 +157,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.apiKey)
 					.onChange(async (value) => {
 						this.plugin.settings.apiKey = value.trim();
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					});
 				// Make the input a password field
 				text.inputEl.type = "password";
@@ -203,7 +228,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						this.plugin.settings.sendMessageShortcut = value as
 							| "enter"
 							| "cmd-enter";
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					}),
 			);
 
@@ -223,7 +248,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.autoMentionActiveNote)
 					.onChange(async (value) => {
 						this.plugin.settings.autoMentionActiveNote = value;
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					}),
 			);
 
@@ -245,7 +270,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						if (!isNaN(num) && num >= 1) {
 							this.plugin.settings.displaySettings.maxNoteLength =
 								num;
-							await this.plugin.saveSettings();
+							await this.saveAndNotify();
 						}
 					}),
 			);
@@ -269,7 +294,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						if (!isNaN(num) && num >= 1) {
 							this.plugin.settings.displaySettings.maxSelectionLength =
 								num;
-							await this.plugin.saveSettings();
+							await this.saveAndNotify();
 						}
 					}),
 			);
@@ -293,7 +318,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.displaySettings.autoCollapseDiffs =
 							value;
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 						this.display();
 					}),
 			);
@@ -318,7 +343,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							if (!isNaN(num) && num > 0) {
 								this.plugin.settings.displaySettings.diffCollapseThreshold =
 									num;
-								await this.plugin.saveSettings();
+								await this.saveAndNotify();
 							}
 						}),
 				);
@@ -340,7 +365,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.autoAllowPermissions)
 					.onChange(async (value) => {
 						this.plugin.settings.autoAllowPermissions = value;
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					}),
 			);
 
@@ -363,7 +388,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						.setValue(this.plugin.settings.windowsWslMode)
 						.onChange(async (value) => {
 							this.plugin.settings.windowsWslMode = value;
-							await this.plugin.saveSettings();
+							await this.saveAndNotify();
 							this.display(); // Refresh to show/hide distribution setting
 						}),
 				);
@@ -384,7 +409,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							.onChange(async (value) => {
 								this.plugin.settings.windowsWslDistribution =
 									value.trim() || undefined;
-								await this.plugin.saveSettings();
+								await this.saveAndNotify();
 							}),
 					);
 			}
@@ -420,7 +445,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.exportSettings.defaultFolder =
 							value;
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					}),
 			);
 
@@ -438,7 +463,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.exportSettings.filenameTemplate =
 							value;
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					}),
 			);
 
@@ -451,7 +476,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.exportSettings.includeImages =
 							value;
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 						this.display();
 					}),
 			);
@@ -477,7 +502,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						.onChange(async (value) => {
 							this.plugin.settings.exportSettings.imageLocation =
 								value as "obsidian" | "custom" | "base64";
-							await this.plugin.saveSettings();
+							await this.saveAndNotify();
 							this.display();
 						}),
 				);
@@ -500,7 +525,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							.onChange(async (value) => {
 								this.plugin.settings.exportSettings.imageCustomFolder =
 									value;
-								await this.plugin.saveSettings();
+								await this.saveAndNotify();
 							}),
 					);
 			}
@@ -519,7 +544,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.exportSettings.autoExportOnNewChat =
 							value;
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					}),
 			);
 
@@ -537,7 +562,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.exportSettings.autoExportOnCloseChat =
 							value;
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					}),
 			);
 
@@ -552,7 +577,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.exportSettings.openFileAfterExport =
 							value;
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					}),
 			);
 
@@ -572,7 +597,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.debugMode)
 					.onChange(async (value) => {
 						this.plugin.settings.debugMode = value;
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					}),
 			);
 
@@ -838,7 +863,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			} else {
 				return;
 			}
-			await this.plugin.saveSettings();
+			await this.saveAndNotify();
 		} catch {
 			// Non-critical — version check will fall back to detection
 		}
@@ -926,15 +951,19 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			.setDesc("Checking…");
 
 		const check = async () => {
-			const { getNodeVersion, getNpmVersion } = await import(
-				"../../shared/version-checker"
-			);
+			const { getNodeVersion, getNpmVersion, classifyNodeVersion } =
+				await import("../../shared/version-checker");
 			const version =
 				which === "node"
 					? await getNodeVersion(this.plugin.settings.nodePath)
 					: await getNpmVersion(this.plugin.settings.nodePath);
 			if (version) {
-				setting.setDesc(`Installed: ${version}`);
+				if (which === "node") {
+					const { warning } = classifyNodeVersion(version);
+					setting.setDesc(`Installed: ${version}.${warning}`);
+				} else {
+					setting.setDesc(`Installed: ${version}`);
+				}
 			} else {
 				setting.setDesc(
 					`Not found. Check the Node.js path setting above.`,
@@ -1240,7 +1269,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								new Notice(`Warning: ${validation.error}`, 3000);
 							}
 						}
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					});
 			})
 			.addButton((button) =>
@@ -1253,7 +1282,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							const validation = validatePath(result.path);
 							if (validation.valid) {
 								this.plugin.settings.gemini.command = result.path;
-								await this.plugin.saveSettings();
+								await this.saveAndNotify();
 								this.display();
 								new Notice(`Gemini CLI found: ${result.path}`, 3000);
 							} else {
@@ -1282,7 +1311,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.gemini.args =
 							this.parseArgs(value);
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					});
 				text.inputEl.rows = 3;
 			});
@@ -1297,7 +1326,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.setValue(this.formatEnv(gemini.env))
 					.onChange(async (value) => {
 						this.plugin.settings.gemini.env = this.parseEnv(value);
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					});
 				text.inputEl.rows = 3;
 			});
@@ -1327,7 +1356,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								new Notice(`Warning: ${validation.error}`, 3000);
 							}
 						}
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					});
 			})
 			.addButton((button) =>
@@ -1340,7 +1369,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							const validation = validatePath(result.path);
 							if (validation.valid) {
 								this.plugin.settings.claude.command = result.path;
-								await this.plugin.saveSettings();
+								await this.saveAndNotify();
 								this.display();
 								new Notice(`claude-agent-acp found: ${result.path}`, 3000);
 							} else {
@@ -1369,7 +1398,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.claude.args =
 							this.parseArgs(value);
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					});
 				text.inputEl.rows = 3;
 			});
@@ -1384,7 +1413,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.setValue(this.formatEnv(claude.env))
 					.onChange(async (value) => {
 						this.plugin.settings.claude.env = this.parseEnv(value);
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					});
 				text.inputEl.rows = 3;
 			});
@@ -1413,7 +1442,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 								new Notice(`Warning: ${validation.error}`, 3000);
 							}
 						}
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					});
 			})
 			.addButton((button) =>
@@ -1426,7 +1455,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							const validation = validatePath(result.path);
 							if (validation.valid) {
 								this.plugin.settings.codex.command = result.path;
-								await this.plugin.saveSettings();
+								await this.saveAndNotify();
 								this.display();
 								new Notice(`codex-acp found: ${result.path}`, 3000);
 							} else {
@@ -1454,7 +1483,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.setValue(this.formatArgs(codex.args))
 					.onChange(async (value) => {
 						this.plugin.settings.codex.args = this.parseArgs(value);
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					});
 				text.inputEl.rows = 3;
 			});
@@ -1469,7 +1498,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.setValue(this.formatEnv(codex.env))
 					.onChange(async (value) => {
 						this.plugin.settings.codex.env = this.parseEnv(value);
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					});
 				text.inputEl.rows = 3;
 			});
@@ -1502,7 +1531,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						env: [],
 					});
 					this.plugin.ensureActiveAgentId();
-					await this.plugin.saveSettings();
+					await this.saveAndNotify();
 					this.display();
 				});
 		});
@@ -1537,7 +1566,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							this.plugin.settings.activeAgentId = nextId;
 						}
 						this.plugin.ensureActiveAgentId();
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 						this.refreshAgentDropdown();
 					});
 			});
@@ -1549,7 +1578,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				.onClick(async () => {
 					this.plugin.settings.customAgents.splice(index, 1);
 					this.plugin.ensureActiveAgentId();
-					await this.plugin.saveSettings();
+					await this.saveAndNotify();
 					this.display();
 				});
 		});
@@ -1566,7 +1595,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 							trimmed.length > 0
 								? trimmed
 								: this.plugin.settings.customAgents[index].id;
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 						this.refreshAgentDropdown();
 					});
 			});
@@ -1580,7 +1609,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.customAgents[index].command =
 							value.trim();
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					});
 			});
 
@@ -1595,7 +1624,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.customAgents[index].args =
 							this.parseArgs(value);
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					});
 				text.inputEl.rows = 3;
 			});
@@ -1611,7 +1640,7 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.customAgents[index].env =
 							this.parseEnv(value);
-						await this.plugin.saveSettings();
+						await this.saveAndNotify();
 					});
 				text.inputEl.rows = 3;
 			});

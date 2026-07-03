@@ -267,9 +267,15 @@ export function useChat(
 				return [...prev, newMessage];
 			}
 
-			// Update existing last message
+			// Update existing last message.
+			// Copy the content array too: mutating the previous state's array
+			// breaks updater purity (duplicated chunks if React re-executes
+			// the updater) and retroactively alters saved message snapshots.
 			const lastMessage = prev[prev.length - 1];
-			const updatedMessage = { ...lastMessage };
+			const updatedMessage = {
+				...lastMessage,
+				content: [...lastMessage.content],
+			};
 
 			if (content.type === "text" || content.type === "agent_thought") {
 				// Append to existing content of same type or create new content
@@ -328,9 +334,13 @@ export function useChat(
 				return [...prev, newMessage];
 			}
 
-			// Update existing last message
+			// Update existing last message (copy content array — see
+			// updateLastMessage for why mutation is unsafe here)
 			const lastMessage = prev[prev.length - 1];
-			const updatedMessage = { ...lastMessage };
+			const updatedMessage = {
+				...lastMessage,
+				content: [...lastMessage.content],
+			};
 
 			if (content.type === "text") {
 				// Append to existing text content or create new

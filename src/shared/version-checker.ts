@@ -4,7 +4,7 @@ import { homedir } from "os";
 import { dirname, join } from "path";
 import { Platform, requestUrl } from "obsidian";
 import { lt } from "semver";
-import { getEnhancedWindowsEnv } from "./windows-env";
+import { getEnhancedWindowsEnv, prependToPath } from "./windows-env";
 import { resolveCommandDirectory } from "./path-utils";
 
 export interface VersionInfo {
@@ -28,6 +28,11 @@ export interface VersionInfo {
 	isAboveTestedVersion: boolean;
 	/** The max tested version for this agent, or null if no range defined. */
 	maxTestedVersion: string | null;
+	/** True when the registry's latest version is newer than the highest
+	 *  version this plugin release was tested against. Used to suppress the
+	 *  "update available" banner so users aren't nudged toward an agent
+	 *  version the plugin hasn't been verified with. */
+	latestAboveTested: boolean;
 }
 
 /**
@@ -45,7 +50,7 @@ const NPM_PACKAGES: Record<string, string> = {
  * Leaving an agent out means no compatibility warning is shown for it.
  */
 export const AGENT_MAX_TESTED_VERSIONS: Record<string, string> = {
-	"claude-code-acp": "0.50.0",
+	"claude-code-acp": "0.55.0",
 	"gemini-cli": "0.43.0",
 };
 
@@ -75,7 +80,7 @@ function runForVersion(
 		}
 		if (nodeDir) {
 			const sep = Platform.isWin ? ";" : ":";
-			env.PATH = `${nodeDir}${sep}${env.PATH ?? ""}`;
+			prependToPath(env, nodeDir, sep);
 		}
 
 		let spawnCommand: string;
@@ -124,6 +129,52 @@ export async function getNodeVersion(nodePath: string): Promise<string | null> {
 	return raw ? raw.replace(/^v/, "") : null;
 }
 
+/** Minimum Node.js major required by claude-agent-acp. */
+const NODE_MIN_MAJOR = 22;
+
+/** Current recommended LTS major. Update when a new even version becomes Active LTS.
+ *  v26 becomes LTS October 2026 — update this then. */
+const NODE_RECOMMENDED_LTS = 24;
+
+/** The next even major that will become LTS, and when. */
+const NODE_NEXT_LTS = { major: 26, when: "October 2026" };
+
+export interface NodeVersionStatus {
+	/** The version string, e.g. "25.4.0". */
+	version: string;
+	/** Warning suffix to append to the description, or empty string if fine. */
+	warning: string;
+}
+
+/**
+ * Classify a Node.js version string and return a human-readable warning if
+ * the version is problematic. Two cases:
+ *   - Below NODE_MIN_MAJOR: won't work with claude-agent-acp.
+ *   - Odd major: development/Current release, short-lived and often EOL.
+ */
+export function classifyNodeVersion(version: string): NodeVersionStatus {
+	const major = parseInt(version.split(".")[0], 10);
+	if (isNaN(major)) return { version, warning: "" };
+
+	if (major < NODE_MIN_MAJOR) {
+		return {
+			version,
+			warning: ` Below minimum required (v${NODE_MIN_MAJOR}). claude-agent-acp requires Node.js ≥${NODE_MIN_MAJOR}.`,
+		};
+	}
+	if (major % 2 !== 0) {
+		const nextLtsSuffix =
+			major + 1 === NODE_NEXT_LTS.major
+				? ` (v${NODE_NEXT_LTS.major} becomes LTS ${NODE_NEXT_LTS.when})`
+				: "";
+		return {
+			version,
+			warning: ` v${major} is a development release and is end-of-life. Switch to v${NODE_RECOMMENDED_LTS} LTS${nextLtsSuffix}.`,
+		};
+	}
+	return { version, warning: "" };
+}
+
 /** Ask npm for its global modules root (e.g. `%APPDATA%/npm/node_modules`). */
 export async function getNpmGlobalRoot(nodePath: string): Promise<string | null> {
 	return runForVersion("npm", ["root", "-g"], nodePath);
@@ -150,7 +201,7 @@ function runNpmListGlobal(nodePath: string): Promise<string> {
 		}
 		if (nodeDir) {
 			const sep = Platform.isWin ? ";" : ":";
-			env.PATH = `${nodeDir}${sep}${env.PATH ?? ""}`;
+			prependToPath(env, nodeDir, sep);
 		}
 
 		let command: string;
@@ -504,5 +555,24 @@ export async function checkAgentVersion(
 		}
 	}
 
-	return { installed, latest, isInstalled, isOutdated, isAboveTestedVersion, maxTestedVersion };
+	let latestAboveTested = false;
+	if (latest && maxTestedVersion) {
+		try {
+			const { gt } = await import("semver");
+			latestAboveTested = gt(latest, maxTestedVersion);
+		} catch {
+			// Unparseable version — don't suppress the update banner.
+			latestAboveTested = false;
+		}
+	}
+
+	return {
+		installed,
+		latest,
+		isInstalled,
+		isOutdated,
+		isAboveTestedVersion,
+		maxTestedVersion,
+		latestAboveTested,
+	};
 }

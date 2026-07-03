@@ -1,10 +1,10 @@
-import { Modal, App, ButtonComponent, Setting } from "obsidian";
+import { Modal, App, ButtonComponent, Notice, Setting } from "obsidian";
 import type AgentClientPlugin from "../plugin";
 import { getAgentInstallCommand } from "../shared/agent-installer";
 import { detectWsl, detectNodePath, detectAgentPath, detectSandboxEnvironment } from "../shared/path-detector";
 import { spawn } from "child_process";
 import { Platform } from "obsidian";
-import { getEnhancedWindowsEnv } from "../shared/windows-env";
+import { getEnhancedWindowsEnv, prependToPath } from "../shared/windows-env";
 
 interface AgentOption {
 	id: string;
@@ -86,11 +86,16 @@ export class OnboardingModal extends Modal {
 			cls: "obsidianaitools-onboarding-steps",
 		});
 
-		// Close button
+		// Dismiss button — closing the modal (here or via X) marks onboarding
+		// as seen so it doesn't reopen on every vault load. Setup can be
+		// re-run from Settings → AI Tools.
 		new Setting(contentEl)
 			.addButton((btn) =>
 				btn
-					.setButtonText("Close")
+					.setButtonText("Skip for now")
+					.setTooltip(
+						"You can re-run setup anytime from Settings → AI Tools",
+					)
 					.onClick(() => {
 						this.close();
 					}),
@@ -102,6 +107,22 @@ export class OnboardingModal extends Modal {
 	onClose() {
 		const { contentEl } = this;
 		contentEl.empty();
+
+		// Any dismissal (X, "Skip for now", Esc) counts as "seen" — otherwise
+		// the modal reopens on every vault load until the flow is completed.
+		if (!this.plugin.settings.hasCompletedOnboarding) {
+			void this.plugin
+				.saveSettingsAndNotify({
+					...this.plugin.settings,
+					hasCompletedOnboarding: true,
+				})
+				.then(() => {
+					new Notice(
+						"[AI Tools] Setup skipped. Re-run it anytime from Settings → AI Tools.",
+						6000,
+					);
+				});
+		}
 	}
 
 	private nextStep() {
@@ -239,7 +260,7 @@ export class OnboardingModal extends Modal {
 			cls: "obsidianaitools-onboarding-dev-note",
 		});
 
-		this.addNavigation("Get Started", undefined, true, false, !this.selectedAgent);
+		// No nav button here: selecting an agent card advances automatically.
 	}
 
 	private createAgentCard(parent: HTMLElement, agent: AgentOption) {
@@ -1081,7 +1102,7 @@ export class OnboardingModal extends Modal {
 			// Add nodeDir to PATH if specified
 			if (nodeDir && !shouldUseWsl) {
 				const separator = Platform.isWin ? ";" : ":";
-				env.PATH = `${nodeDir}${separator}${env.PATH || ""}`;
+				prependToPath(env, nodeDir, separator);
 			}
 
 			const child = spawn(command, args, {

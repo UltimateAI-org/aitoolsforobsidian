@@ -84,6 +84,36 @@ function parseRegQueryOutput(output: string): string | null {
 }
 
 /**
+ * Find the actual key used for PATH in an env object.
+ *
+ * On Windows, `process.env` is case-insensitive, but spreading it into a
+ * plain object preserves the original key — usually `Path`, not `PATH`.
+ * Writing to `env.PATH` then creates a *second* key alongside `Path`, and
+ * which one the child process sees is effectively arbitrary. Always read and
+ * write through the key this function returns.
+ */
+export function getPathKey(env: NodeJS.ProcessEnv): string {
+	for (const key of Object.keys(env)) {
+		if (key.toUpperCase() === "PATH") {
+			return key;
+		}
+	}
+	return "PATH";
+}
+
+/**
+ * Prepend a directory to the env's PATH, respecting the existing key casing.
+ */
+export function prependToPath(
+	env: NodeJS.ProcessEnv,
+	dir: string,
+	separator: string,
+): void {
+	const pathKey = getPathKey(env);
+	env[pathKey] = env[pathKey] ? `${dir}${separator}${env[pathKey]}` : dir;
+}
+
+/**
  * Get enhanced environment variables for Windows.
  *
  * This merges the current process.env with the full PATH from registry,
@@ -104,8 +134,11 @@ export function getEnhancedWindowsEnv(
 		return baseEnv;
 	}
 
-	// Merge the full PATH with any existing PATH modifications
-	const existingPath = baseEnv.PATH || "";
+	// Merge the full PATH with any existing PATH modifications.
+	// Read/write via the env's actual PATH key (usually "Path" on Windows)
+	// so we don't create a duplicate PATH/Path pair.
+	const pathKey = getPathKey(baseEnv);
+	const existingPath = baseEnv[pathKey] || "";
 	const existingPaths = existingPath.split(";").filter((p) => p.length > 0);
 	const fullPaths = fullPath.split(";").filter((p) => p.length > 0);
 
@@ -120,7 +153,7 @@ export function getEnhancedWindowsEnv(
 
 	return {
 		...baseEnv,
-		PATH: combinedPaths.join(";"),
+		[pathKey]: combinedPaths.join(";"),
 	};
 }
 

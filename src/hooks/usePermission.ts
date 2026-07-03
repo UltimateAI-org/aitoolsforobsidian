@@ -111,8 +111,10 @@ function selectOption(
 		}
 	}
 
-	// Return first option as last resort
-	return options[0];
+	// No safe match. Deliberately NOT falling back to options[0]: for the
+	// reject hotkey that could select an "Allow" option (and vice versa),
+	// doing the opposite of what the user asked.
+	return undefined;
 }
 
 // ============================================================================
@@ -169,10 +171,13 @@ export function usePermission(
 			return false;
 		}
 
-		const option = selectOption(activePermission.options, [
-			"allow_once",
-			"allow_always",
-		]);
+		const option = selectOption(
+			activePermission.options,
+			["allow_once", "allow_always"],
+			(opt) =>
+				opt.name.toLowerCase().includes("allow") ||
+				opt.name.toLowerCase().includes("yes"),
+		);
 
 		if (!option) {
 			return false;

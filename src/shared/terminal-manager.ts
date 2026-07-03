@@ -91,6 +91,10 @@ export class TerminalManager {
 				params.cwd || process.cwd(),
 				this.plugin.settings.windowsWslDistribution,
 				nodeDir,
+				// Mirrors the other platform branches: with args the command
+				// is an executable (escape it); without args it may be a full
+				// command line the shell should parse.
+				args.length > 0,
 			);
 			command = wslWrapped.command;
 			args = wslWrapped.args;

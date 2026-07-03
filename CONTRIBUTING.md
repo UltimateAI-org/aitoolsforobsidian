@@ -40,7 +40,7 @@ This plugin focuses on **ACP client implementation** + **features that make ACP 
 
 ### Prerequisites
 
-- Node.js 18.x or later
+- Node.js 18.x or later (tested up to 25.4.0, npm up to 11.14.1)
 - npm
 
 ### Setup Steps

@@ -23,6 +23,11 @@ export function convertWindowsPathToWsl(windowsPath: string): string {
 /**
  * Wrap a command to run inside WSL using wsl.exe.
  * Generates wsl.exe command with proper arguments for executing commands in WSL environment.
+ *
+ * @param escapeCommand - When true, `command` is a single executable path and
+ *   gets shell-escaped (so paths with spaces/metacharacters work). When false,
+ *   `command` is passed raw so bash can parse a full command line like
+ *   "ls -la" (terminal requests without an args array).
  */
 export function wrapCommandForWsl(
 	command: string,
@@ -30,6 +35,7 @@ export function wrapCommandForWsl(
 	cwd: string,
 	distribution?: string,
 	additionalPath?: string,
+	escapeCommand = false,
 ): { command: string; args: string[] } {
 	// Validate working directory path
 	// Check for UNC paths (\\server\share) which are not supported by WSL
@@ -72,7 +78,8 @@ export function wrapCommandForWsl(
 		pathPrefix = `export PATH="${escapePathForShell(wslPath)}:$PATH"; `;
 	}
 
-	const fullCommand = `${pathPrefix}cd ${escapeShellArg(wslCwd)} && ${command}${argsString}`;
+	const commandPart = escapeCommand ? escapeShellArg(command) : command;
+	const fullCommand = `${pathPrefix}cd ${escapeShellArg(wslCwd)} && ${commandPart}${argsString}`;
 	wslArgs.push("bash", "-l", "-c", fullCommand);
 
 	return {

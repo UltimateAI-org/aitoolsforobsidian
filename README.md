@@ -79,6 +79,8 @@ sudo apt install nodejs npm
 sudo dnf install nodejs npm
 ```
 
+> **Supported versions:** Node.js 22.x – 25.x (claude-agent-acp requires ≥22; v24 LTS recommended; tested up to 25.4.0), npm 11.x (tested up to 11.14.1)
+
 > **Linux note:** If you installed Obsidian via Snap or Flatpak, npm and Node.js are not accessible due to sandbox isolation. Reinstall Obsidian using the `.deb` (Debian/Ubuntu/Mint) or `.AppImage` (Fedora/other) from [obsidian.md/download](https://obsidian.md/download). The site may default to AppImage — scroll down to find the `.deb`.
 
 ### Step 2: 📦 Install Agent Dependencies

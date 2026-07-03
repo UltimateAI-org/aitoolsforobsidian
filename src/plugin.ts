@@ -77,6 +77,11 @@ export interface AgentClientPluginSettings {
 	// installed version the user dismissed — so we don't re-show the same
 	// warning every session.
 	compatWarningDismissed: Record<string, string>;
+	// Dismissed agent-update banners keyed by agentId, value is the latest
+	// version the user dismissed. Persisted so users who deliberately rolled
+	// back (e.g. after a broken agent release) aren't re-nagged every time
+	// the chat view opens; a newer version shows the banner again.
+	agentUpdateDismissed: Record<string, string>;
 	// Global API configuration
 	apiKey: string;
 	baseUrl: string;
@@ -142,6 +147,7 @@ const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	hasCompletedOnboarding: false,
 	lastSeenPluginVersion: "",
 	compatWarningDismissed: {},
+	agentUpdateDismissed: {},
 	apiKey: "",
 	baseUrl: "https://chat.obsidianaitools.com",
 	model: "MiniMax-M2.1",
@@ -684,6 +690,12 @@ export default class AgentClientPlugin extends Plugin {
 				!Array.isArray(rawSettings.compatWarningDismissed)
 					? (rawSettings.compatWarningDismissed as Record<string, string>)
 					: DEFAULT_SETTINGS.compatWarningDismissed,
+			agentUpdateDismissed:
+				typeof rawSettings.agentUpdateDismissed === "object" &&
+				rawSettings.agentUpdateDismissed !== null &&
+				!Array.isArray(rawSettings.agentUpdateDismissed)
+					? (rawSettings.agentUpdateDismissed as Record<string, string>)
+					: DEFAULT_SETTINGS.agentUpdateDismissed,
 			// Global API configuration
 			apiKey:
 				typeof rawSettings.apiKey === "string"
