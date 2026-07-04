@@ -59,6 +59,30 @@ interface WireFrameRecord {
 	frame: unknown;
 }
 
+/** Streaming session/update kinds that arrive one token per frame. */
+const STREAM_CHUNK_KINDS = new Set([
+	"agent_message_chunk",
+	"agent_thought_chunk",
+	"user_message_chunk",
+]);
+
+/** Accumulator for a run of streaming chunk frames being coalesced. */
+interface PendingChunkRun {
+	key: string;
+	direction: WireDirection;
+	agentId?: string;
+	sessionId?: string;
+	messageId?: string;
+	sessionUpdate: string;
+	text: string;
+	chunks: number;
+	firstTimestamp: string;
+	lastTimestamp: string;
+}
+
+/** How long a chunk run may sit idle before it is flushed to disk. */
+const CHUNK_FLUSH_IDLE_MS = 2000;
+
 /**
  * Persistent error sink writing NDJSON files into the plugin config dir.
  *
@@ -70,6 +94,10 @@ export class ErrorLog {
 
 	// Serializes writes so concurrent callers don't interleave appends.
 	private writeChain: Promise<void> = Promise.resolve();
+
+	// Streaming chunk frames being coalesced into one summary line.
+	private pendingChunks: PendingChunkRun | null = null;
+	private chunkFlushTimer: number | null = null;
 
 	constructor(plugin: AgentClientPlugin) {
 		this.plugin = plugin;
@@ -127,6 +155,104 @@ export class ErrorLog {
 			safeStringify(record),
 			MAX_WIRE_LOG_BYTES,
 		);
+	}
+
+	/**
+	 * Append an ACP wire frame, coalescing streaming chunk frames.
+	 *
+	 * Streamed responses arrive one token per JSON-RPC frame; logging each
+	 * verbatim turns a two-minute thinking stream into thousands of lines
+	 * and rotates useful frames (tool calls, permissions, errors) out of the
+	 * log. Chunk frames are buffered per message and written as ONE summary
+	 * line with the assembled text and chunk count. All other frames are
+	 * logged verbatim, after flushing any pending run so ordering holds.
+	 */
+	async logWireFrameCoalesced(
+		direction: WireDirection,
+		frame: unknown,
+		agentId?: string,
+	): Promise<void> {
+		if (!this.plugin.settings.debugMode) return;
+
+		const chunk = extractStreamChunk(frame);
+		if (!chunk) {
+			// Non-chunk frame: flush any buffered run first to keep order.
+			await this.flushPendingChunks();
+			await this.logWireFrame(direction, frame, agentId);
+			return;
+		}
+
+		const key = `${direction}|${chunk.sessionId ?? ""}|${chunk.messageId ?? ""}|${chunk.sessionUpdate}`;
+		if (this.pendingChunks && this.pendingChunks.key !== key) {
+			await this.flushPendingChunks();
+		}
+
+		// Don't start a run for an empty chunk — it would flush as a useless
+		// {chunks: 1, text: ""} line. Appending to an existing run is fine.
+		if (!this.pendingChunks && chunk.text.length === 0) return;
+
+		const now = new Date().toISOString();
+		if (!this.pendingChunks) {
+			this.pendingChunks = {
+				key,
+				direction,
+				agentId,
+				sessionId: chunk.sessionId,
+				messageId: chunk.messageId,
+				sessionUpdate: chunk.sessionUpdate,
+				text: "",
+				chunks: 0,
+				firstTimestamp: now,
+				lastTimestamp: now,
+			};
+		}
+		this.pendingChunks.text += chunk.text;
+		this.pendingChunks.chunks += 1;
+		this.pendingChunks.lastTimestamp = now;
+		this.scheduleChunkFlush();
+	}
+
+	/** Write any buffered chunk run to disk as a single summary line. */
+	async flushPendingChunks(): Promise<void> {
+		if (this.chunkFlushTimer !== null) {
+			window.clearTimeout(this.chunkFlushTimer);
+			this.chunkFlushTimer = null;
+		}
+		const run = this.pendingChunks;
+		if (!run) return;
+		this.pendingChunks = null;
+
+		const record: WireFrameRecord = {
+			timestamp: run.firstTimestamp,
+			direction: run.direction,
+			agentId: run.agentId,
+			frame: {
+				coalesced: true,
+				method: "session/update",
+				sessionId: run.sessionId,
+				sessionUpdate: run.sessionUpdate,
+				messageId: run.messageId,
+				chunks: run.chunks,
+				firstTimestamp: run.firstTimestamp,
+				lastTimestamp: run.lastTimestamp,
+				text: run.text,
+			},
+		};
+		await this.appendLine(
+			this.getWireLogPath(),
+			safeStringify(record),
+			MAX_WIRE_LOG_BYTES,
+		);
+	}
+
+	private scheduleChunkFlush(): void {
+		if (this.chunkFlushTimer !== null) {
+			window.clearTimeout(this.chunkFlushTimer);
+		}
+		this.chunkFlushTimer = window.setTimeout(() => {
+			this.chunkFlushTimer = null;
+			void this.flushPendingChunks();
+		}, CHUNK_FLUSH_IDLE_MS);
 	}
 
 	/** Read the error log as text. Empty string if missing. */
@@ -285,9 +411,44 @@ function safeStringify(value: unknown): string {
 }
 
 /**
+ * If the frame is a streaming text-chunk session/update, return the pieces
+ * needed to coalesce it; otherwise null (frame should be logged verbatim).
+ * Only text chunks coalesce — image/audio chunks are rare and stay verbatim.
+ */
+function extractStreamChunk(frame: unknown): {
+	sessionId?: string;
+	messageId?: string;
+	sessionUpdate: string;
+	text: string;
+} | null {
+	if (typeof frame !== "object" || frame === null) return null;
+	const f = frame as Record<string, unknown>;
+	if (f.method !== "session/update") return null;
+	const params = f.params;
+	if (typeof params !== "object" || params === null) return null;
+	const p = params as Record<string, unknown>;
+	const update = p.update;
+	if (typeof update !== "object" || update === null) return null;
+	const u = update as Record<string, unknown>;
+	const kind = u.sessionUpdate;
+	if (typeof kind !== "string" || !STREAM_CHUNK_KINDS.has(kind)) return null;
+	const content = u.content;
+	if (typeof content !== "object" || content === null) return null;
+	const c = content as Record<string, unknown>;
+	if (c.type !== "text" || typeof c.text !== "string") return null;
+	return {
+		sessionId: typeof p.sessionId === "string" ? p.sessionId : undefined,
+		messageId: typeof u.messageId === "string" ? u.messageId : undefined,
+		sessionUpdate: kind,
+		text: c.text,
+	};
+}
+
+/**
  * Log a single NDJSON wire line. Tries to parse the line as JSON so the
  * record contains a structured frame; falls back to recording the raw
- * line if parsing fails.
+ * line if parsing fails. Streaming chunk frames are coalesced into one
+ * summary line per message (see logWireFrameCoalesced).
  */
 export async function logWireLine(
 	errorLog: ErrorLog,
@@ -301,7 +462,7 @@ export async function logWireLine(
 	} catch {
 		frame = { raw: line };
 	}
-	await errorLog.logWireFrame(direction, frame, agentId);
+	await errorLog.logWireFrameCoalesced(direction, frame, agentId);
 }
 
 /**
