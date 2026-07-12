@@ -6,9 +6,15 @@ import {
 	DropdownComponent,
 	Platform,
 	Notice,
+	setIcon,
 } from "obsidian";
 import type AgentClientPlugin from "../../plugin";
-import type { CustomAgentSettings, AgentEnvVar } from "../../plugin";
+import type {
+	CustomAgentSettings,
+	AgentEnvVar,
+	QuickPromptSetting,
+} from "../../plugin";
+import { QuickPromptEditModal } from "./QuickPromptEditModal";
 import { normalizeEnvVars } from "../../shared/settings-utils";
 import { detectNodePath, detectAgentPath, validatePath } from "../../shared/path-detector";
 import { checkAgentVersion, getNpmPackage } from "../../shared/version-checker";
@@ -24,6 +30,12 @@ export class AgentClientSettingTab extends PluginSettingTab {
 	plugin: AgentClientPlugin;
 	private agentSelector: DropdownComponent | null = null;
 	private unsubscribe: (() => void) | null = null;
+	/** Whether the quick-prompts sub-page is showing instead of main settings */
+	private showQuickPromptsPage = false;
+	/** Main-page scroll position, captured when entering a sub-page */
+	private mainScrollPos = { container: 0, parent: 0 };
+	/** Index being dragged in the quick-prompts list, if any */
+	private qpDragIndex: number | null = null;
 
 	constructor(app: App, plugin: AgentClientPlugin) {
 		super(app, plugin);
@@ -42,6 +54,22 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		await this.plugin.saveSettingsAndNotify({ ...this.plugin.settings });
 	}
 
+	/**
+	 * Re-render the tab without losing the user's scroll position.
+	 * display() empties and rebuilds the container, which resets scroll to
+	 * the top — jarring for edits far down the page (e.g. quick prompts).
+	 */
+	private refreshDisplay(): void {
+		const parent = this.containerEl.parentElement;
+		const containerScroll = this.containerEl.scrollTop;
+		const parentScroll = parent?.scrollTop ?? 0;
+		this.display();
+		this.containerEl.scrollTop = containerScroll;
+		if (parent) {
+			parent.scrollTop = parentScroll;
+		}
+	}
+
 	display(): void {
 		const { containerEl } = this;
 
@@ -52,6 +80,12 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		if (this.unsubscribe) {
 			this.unsubscribe();
 			this.unsubscribe = null;
+		}
+
+		// Sub-page: quick prompts manager replaces the main settings content
+		if (this.showQuickPromptsPage) {
+			this.renderQuickPromptsPage(containerEl);
+			return;
 		}
 
 		// Documentation link
@@ -298,6 +332,37 @@ export class AgentClientSettingTab extends PluginSettingTab {
 						}
 					}),
 			);
+
+		// ─────────────────────────────────────────────────────────────────────
+		// Quick prompts
+		// ─────────────────────────────────────────────────────────────────────
+
+		new Setting(containerEl).setName("Quick prompts").setHeading();
+
+		// Defensive: the running settings object may predate this feature
+		// (plugin updated without a full reload), so the key can be missing.
+		if (!Array.isArray(this.plugin.settings.quickPrompts)) {
+			this.plugin.settings.quickPrompts = [];
+		}
+		// Whole row is clickable (Meta Bind-style nav row with a chevron)
+		const navSetting = new Setting(containerEl)
+			.setName("Prompts")
+			.setDesc(
+				"Reusable prompts shown as chips above the message box. Typing an exclamation mark in the message box searches them.",
+			)
+			.addExtraButton((button) => {
+				button.setIcon("chevron-right").setTooltip("Manage prompts");
+			});
+		navSetting.settingEl.addClass("obsidianaitools-qp-nav-row");
+		navSetting.settingEl.addEventListener("click", () => {
+			// Remember where the user was so Back returns them here
+			this.mainScrollPos = {
+				container: this.containerEl.scrollTop,
+				parent: this.containerEl.parentElement?.scrollTop ?? 0,
+			};
+			this.showQuickPromptsPage = true;
+			this.display();
+		});
 
 		// ─────────────────────────────────────────────────────────────────────
 		// Display
@@ -730,6 +795,8 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			this.unsubscribe();
 			this.unsubscribe = null;
 		}
+		// Reopening settings should land on the main page, not a sub-page
+		this.showQuickPromptsPage = false;
 	}
 
 	private renderAgentSelector(containerEl: HTMLElement) {
@@ -1503,6 +1570,173 @@ export class AgentClientSettingTab extends PluginSettingTab {
 				text.inputEl.rows = 3;
 			});
 	}
+
+	/**
+	 * Quick prompts manager sub-page (replaces main settings content).
+	 * Back arrow returns to the main page; + adds via modal; each row has
+	 * edit (modal), delete, and a drag handle for reordering.
+	 */
+	private renderQuickPromptsPage(containerEl: HTMLElement) {
+		if (!Array.isArray(this.plugin.settings.quickPrompts)) {
+			this.plugin.settings.quickPrompts = [];
+		}
+		const prompts = this.plugin.settings.quickPrompts;
+
+		// Header: back arrow + title
+		const header = containerEl.createDiv({
+			cls: "obsidianaitools-qp-page-header",
+		});
+		const backBtn = header.createEl("button", {
+			cls: "clickable-icon obsidianaitools-qp-back",
+			attr: { "aria-label": "Back to settings" },
+		});
+		setIcon(backBtn, "arrow-left");
+		backBtn.addEventListener("click", () => {
+			this.showQuickPromptsPage = false;
+			this.display();
+			// Return to where the user was on the main page
+			this.containerEl.scrollTop = this.mainScrollPos.container;
+			if (this.containerEl.parentElement) {
+				this.containerEl.parentElement.scrollTop =
+					this.mainScrollPos.parent;
+			}
+		});
+		header.createEl("span", {
+			text: "Quick prompts",
+			cls: "obsidianaitools-qp-page-title",
+		});
+
+		// List heading with add button top right
+		new Setting(containerEl)
+			.setName("Prompts")
+			.setHeading()
+			.addExtraButton((button) => {
+				button
+					.setIcon("plus")
+					.setTooltip("Add quick prompt")
+					.onClick(() => {
+						const newPrompt: QuickPromptSetting = {
+							id: crypto.randomUUID(),
+							name: "",
+							prompt: "",
+							sendImmediately: true,
+						};
+						new QuickPromptEditModal(
+							this.app,
+							newPrompt,
+							async (result) => {
+								this.plugin.settings.quickPrompts.push(result);
+								await this.saveAndNotify();
+								this.refreshDisplay();
+							},
+						).open();
+					});
+			});
+
+		if (prompts.length === 0) {
+			containerEl.createEl("p", {
+				text: "No quick prompts configured yet. Use + to add one.",
+			});
+			return;
+		}
+
+		const listEl = containerEl.createDiv({
+			cls: "obsidianaitools-qp-list",
+		});
+		prompts.forEach((quickPrompt, index) => {
+			this.renderQuickPromptRow(listEl, quickPrompt, index);
+		});
+	}
+
+	private renderQuickPromptRow(
+		listEl: HTMLElement,
+		quickPrompt: QuickPromptSetting,
+		index: number,
+	) {
+		const prompts = this.plugin.settings.quickPrompts;
+		const row = new Setting(listEl)
+			.setName(quickPrompt.name || "(unnamed)")
+			.setDesc(quickPrompt.prompt);
+		row.settingEl.addClass("obsidianaitools-qp-row");
+
+		row.addExtraButton((button) => {
+			button
+				.setIcon("pencil")
+				.setTooltip("Edit")
+				.onClick(() => {
+					new QuickPromptEditModal(
+						this.app,
+						quickPrompt,
+						async (result) => {
+							prompts[index] = result;
+							await this.saveAndNotify();
+							this.refreshDisplay();
+						},
+					).open();
+				});
+		});
+
+		row.addExtraButton((button) => {
+			button
+				.setIcon("x")
+				.setTooltip("Delete")
+				.onClick(async () => {
+					prompts.splice(index, 1);
+					await this.saveAndNotify();
+					this.refreshDisplay();
+				});
+		});
+
+		// Drag handle — dragging is only armed while the handle is pressed,
+		// so text selection in the row stays usable.
+		row.addExtraButton((button) => {
+			button.setIcon("grip-vertical").setTooltip("Drag to reorder");
+			const handleEl = button.extraSettingsEl;
+			handleEl.addClass("obsidianaitools-qp-drag-handle");
+			handleEl.addEventListener("mousedown", () => {
+				row.settingEl.draggable = true;
+			});
+			handleEl.addEventListener("mouseup", () => {
+				row.settingEl.draggable = false;
+			});
+		});
+
+		row.settingEl.addEventListener("dragstart", (e) => {
+			this.qpDragIndex = index;
+			row.settingEl.addClass("obsidianaitools-qp-dragging");
+			if (e.dataTransfer) {
+				e.dataTransfer.effectAllowed = "move";
+				e.dataTransfer.setData("text/plain", String(index));
+			}
+		});
+		row.settingEl.addEventListener("dragend", () => {
+			row.settingEl.draggable = false;
+			row.settingEl.removeClass("obsidianaitools-qp-dragging");
+		});
+		row.settingEl.addEventListener("dragover", (e) => {
+			e.preventDefault();
+			if (e.dataTransfer) {
+				e.dataTransfer.dropEffect = "move";
+			}
+			row.settingEl.addClass("obsidianaitools-qp-drop-target");
+		});
+		row.settingEl.addEventListener("dragleave", () => {
+			row.settingEl.removeClass("obsidianaitools-qp-drop-target");
+		});
+		row.settingEl.addEventListener("drop", (e) => {
+			e.preventDefault();
+			row.settingEl.removeClass("obsidianaitools-qp-drop-target");
+			const from = this.qpDragIndex;
+			this.qpDragIndex = null;
+			if (from === null || from === index) {
+				return;
+			}
+			const [moved] = prompts.splice(from, 1);
+			prompts.splice(index, 0, moved);
+			void this.saveAndNotify().then(() => this.refreshDisplay());
+		});
+	}
+
 
 	private renderCustomAgents(containerEl: HTMLElement) {
 		if (this.plugin.settings.customAgents.length === 0) {

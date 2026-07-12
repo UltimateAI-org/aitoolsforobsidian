@@ -1650,6 +1650,196 @@ If your plugin does not need CSS, delete this file.
 	opacity: 1;
 }
 
+/* ===== Quick Prompts (settings sub-page) ===== */
+.obsidianaitools-qp-nav-row {
+	cursor: pointer;
+}
+
+.obsidianaitools-qp-page-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.obsidianaitools-qp-page-title {
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-semibold);
+}
+
+.obsidianaitools-qp-row .setting-item-description {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 480px;
+}
+
+.obsidianaitools-qp-drag-handle {
+	cursor: grab;
+}
+
+.obsidianaitools-qp-dragging {
+	opacity: 0.5;
+}
+
+.obsidianaitools-qp-drop-target {
+	box-shadow: inset 0 2px 0 0 var(--interactive-accent);
+}
+
+.obsidianaitools-qp-modal-textarea {
+	width: 100%;
+	min-width: 320px;
+}
+
+/* ===== Session Tabs ===== */
+/* Active pane is transparent to layout so the chat container keeps its
+   normal flex sizing; hidden panes stay mounted but invisible. */
+.obsidianaitools-tab-pane-active {
+	display: contents;
+}
+
+.obsidianaitools-tab-pane-hidden {
+	display: none;
+}
+
+/* Own slim row directly above the chat area (Claudian-style) */
+.obsidianaitools-tab-strip-row {
+	display: flex;
+	padding: 6px 12px 8px;
+	flex-shrink: 0;
+}
+
+.obsidianaitools-tab-strip {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-shrink: 0;
+}
+
+.obsidianaitools-tab-chip {
+	position: relative;
+	min-width: 26px;
+	height: 26px;
+	padding: 0 7px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	background-color: var(--interactive-normal);
+	color: var(--text-normal);
+	font-size: var(--font-ui-smaller);
+	cursor: pointer;
+	box-shadow: none !important;
+}
+
+.obsidianaitools-tab-chip:hover {
+	background-color: var(--interactive-hover);
+}
+
+.obsidianaitools-tab-chip.is-active {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+}
+
+/* Busy indicator — deliberately subtle; Paul is on the fence about it */
+.obsidianaitools-tab-chip-busy {
+	position: absolute;
+	top: 2px;
+	right: 2px;
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background-color: var(--interactive-accent);
+	opacity: 0.8;
+}
+
+/* ===== Quick Prompt Chips ===== */
+.obsidianaitools-quick-prompt-strip {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	padding: 0 0 6px;
+}
+
+.obsidianaitools-quick-prompt-chip {
+	padding: 2px 10px;
+	border: none;
+	border-radius: var(--radius-l);
+	/* Paul's pick; !important because his theme styles button backgrounds
+	   with higher specificity */
+	background-color: #292a36 !important;
+	color: var(--text-muted);
+	opacity: 0.8;
+	font-size: var(--font-ui-smaller);
+	cursor: pointer;
+	white-space: nowrap;
+	max-width: 220px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	box-shadow: none !important;
+}
+
+.obsidianaitools-quick-prompt-chip:hover {
+	opacity: 1;
+	color: var(--text-normal);
+}
+
+/* Auto-mention badge: rounded pill, Claudian-style */
+.obsidianaitools-mention-badge {
+	border-radius: var(--radius-l);
+}
+
+/* ===== Queued Message Strip ===== */
+.obsidianaitools-queued-strip {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 4px 12px 0;
+}
+
+.obsidianaitools-queued-chip {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	max-width: 100%;
+	padding: 2px 8px;
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+	background-color: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.obsidianaitools-queued-chip-label {
+	flex: 1;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.obsidianaitools-queued-chip-remove {
+	flex-shrink: 0;
+	width: 18px;
+	height: 18px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background-color: var(--interactive-hover);
+	color: var(--text-normal);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: none !important;
+}
+
+.obsidianaitools-queued-chip-remove:hover {
+	background-color: var(--interactive-normal);
+}
+
 /* ===== Message Image (in chat history) ===== */
 .obsidianaitools-message-image {
 	display: inline-block;

@@ -5,11 +5,12 @@ import type AgentClientPlugin from "../../plugin";
 import type { ChatView } from "./ChatView";
 import type { NoteMetadata } from "../../domain/ports/vault-access.port";
 import type { SlashCommand } from "../../domain/models/chat-session";
+import type { QuickPromptSetting } from "../../plugin";
 
 /**
  * Dropdown type for suggestion display.
  */
-type DropdownType = "mention" | "slash-command";
+type DropdownType = "mention" | "slash-command" | "quick-prompt";
 
 /**
  * Props for the SuggestionDropdown component.
@@ -21,14 +22,14 @@ interface SuggestionDropdownProps {
 	/** Type of dropdown to display */
 	type: DropdownType;
 
-	/** Items to display (NoteMetadata for mentions, SlashCommand for commands) */
-	items: NoteMetadata[] | SlashCommand[];
+	/** Items to display (NoteMetadata / SlashCommand / QuickPromptSetting) */
+	items: NoteMetadata[] | SlashCommand[] | QuickPromptSetting[];
 
 	/** Currently selected item index */
 	selectedIndex: number;
 
 	/** Callback when an item is selected */
-	onSelect: (item: NoteMetadata | SlashCommand) => void;
+	onSelect: (item: NoteMetadata | SlashCommand | QuickPromptSetting) => void;
 
 	/** Callback to close the dropdown */
 	onClose: () => void;
@@ -96,9 +97,30 @@ export function SuggestionDropdown({
 	/**
 	 * Render a single dropdown item based on type.
 	 */
-	const renderItem = (item: NoteMetadata | SlashCommand, index: number) => {
+	const renderItem = (
+		item: NoteMetadata | SlashCommand | QuickPromptSetting,
+		index: number,
+	) => {
 		const isSelected = index === selectedIndex;
 		const hasBorder = index < items.length - 1;
+
+		if (type === "quick-prompt") {
+			const quickPrompt = item as QuickPromptSetting;
+			return (
+				<div
+					key={quickPrompt.id}
+					className={`obsidianaitools-mention-dropdown-item ${isSelected ? "obsidianaitools-selected" : ""} ${hasBorder ? "obsidianaitools-has-border" : ""}`}
+					onClick={() => onSelect(quickPrompt)}
+				>
+					<div className="obsidianaitools-mention-dropdown-item-name">
+						!{quickPrompt.name}
+					</div>
+					<div className="obsidianaitools-mention-dropdown-item-path">
+						{quickPrompt.prompt}
+					</div>
+				</div>
+			);
+		}
 
 		if (type === "mention") {
 			const note = item as NoteMetadata;

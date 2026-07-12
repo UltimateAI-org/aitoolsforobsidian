@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import type {
 	ChatMessage,
 	MessageContent,
@@ -36,6 +36,16 @@ export interface SendMessageOptions {
 }
 
 /**
+ * A message queued while a turn is in flight.
+ * Sent automatically when the current turn settles.
+ */
+export interface QueuedMessage {
+	id: string;
+	content: string;
+	options: SendMessageOptions;
+}
+
+/**
  * The current phase of agent response streaming.
  * - idle: No active streaming
  * - waiting: Message sent, waiting for first chunk
@@ -59,6 +69,21 @@ export interface UseChatReturn {
 	lastUserMessage: string | null;
 	/** Error information from message operations */
 	errorInfo: ErrorInfo | null;
+
+	/** Messages queued to send when the current turn finishes */
+	queuedMessages: QueuedMessage[];
+
+	/**
+	 * Queue a message to send when the current turn settles.
+	 * Sends immediately if nothing is in flight.
+	 */
+	queueMessage: (content: string, options: SendMessageOptions) => void;
+
+	/**
+	 * Remove a queued message by id (user dismissed the chip).
+	 */
+	removeQueuedMessage: (id: string) => void;
+
 
 	/**
 	 * Send a message to the agent.
@@ -239,6 +264,22 @@ export function useChat(
 	const [streamingPhase, setStreamingPhase] = useState<StreamingPhase>("idle");
 	const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
 	const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null);
+
+	// In-flight prompt call, if any. A send while this is set steers the
+	// agent: cancel the current turn, await its settlement, then send.
+	const inFlightSendRef = useRef<Promise<unknown> | null>(null);
+
+	// Messages queued while a turn is in flight. The ref is the source of
+	// truth (read inside sendMessage's settle path); state mirrors it for UI.
+	const queuedRef = useRef<QueuedMessage[]>([]);
+	const [queuedMessages, setQueuedMessages] = useState<QueuedMessage[]>([]);
+
+
+	// Latest sendMessage, so the queue flush (which runs inside sendMessage)
+	// and queueMessage's send-now fallback can call it without a stale closure
+	const sendMessageRef = useRef<
+		((content: string, options: SendMessageOptions) => Promise<void>) | null
+	>(null);
 
 	/**
 	 * Add a new message to the chat.
@@ -522,7 +563,39 @@ export function useChat(
 		setIsSending(false);
 		setStreamingPhase("idle");
 		setErrorInfo(null);
+		queuedRef.current = [];
+		setQueuedMessages([]);
 	}, []);
+
+	/**
+	 * Queue a message to send when the current turn settles.
+	 * Sends immediately if nothing is in flight (the turn may have settled
+	 * between the UI reading isSending and this call — without an upcoming
+	 * flush the message would sit in the queue forever).
+	 */
+	const queueMessage = useCallback(
+		(content: string, options: SendMessageOptions): void => {
+			if (!inFlightSendRef.current) {
+				void sendMessageRef.current?.(content, options);
+				return;
+			}
+			queuedRef.current = [
+				...queuedRef.current,
+				{ id: crypto.randomUUID(), content, options },
+			];
+			setQueuedMessages(queuedRef.current);
+		},
+		[],
+	);
+
+	/**
+	 * Remove a queued message by id.
+	 */
+	const removeQueuedMessage = useCallback((id: string): void => {
+		queuedRef.current = queuedRef.current.filter((q) => q.id !== id);
+		setQueuedMessages(queuedRef.current);
+	}, []);
+
 
 	/**
 	 * Set initial messages from loaded session history.
@@ -598,6 +671,26 @@ export function useChat(
 				return;
 			}
 
+			// Steering: sending while a turn is in flight cancels that turn
+			// first. ACP requires the cancelled prompt call to resolve before
+			// the next prompt goes out, so wait for it (bounded — a hung
+			// agent must not block the redirect forever).
+			if (inFlightSendRef.current) {
+				setStreamingPhase("waiting");
+				try {
+					await agentClient.cancel(sessionContext.sessionId);
+				} catch {
+					// Proceed anyway; the settle wait below is bounded
+				}
+				await Promise.race([
+					inFlightSendRef.current.catch(() => undefined),
+					new Promise((resolve) =>
+						window.setTimeout(resolve, 5000),
+					),
+				]);
+				inFlightSendRef.current = null;
+			}
+
 			// Phase 1: Prepare prompt using message-service
 			const prepared = await preparePrompt(
 				{
@@ -659,16 +752,18 @@ export function useChat(
 			setLastUserMessage(content);
 
 			// Phase 4: Send prepared prompt to agent using message-service
+			const sendOp = sendPreparedPrompt(
+				{
+					sessionId: sessionContext.sessionId,
+					agentContent: prepared.agentContent,
+					displayContent: prepared.displayContent,
+					authMethods: sessionContext.authMethods,
+				},
+				agentClient,
+			);
+			inFlightSendRef.current = sendOp;
 			try {
-				const result = await sendPreparedPrompt(
-					{
-						sessionId: sessionContext.sessionId,
-						agentContent: prepared.agentContent,
-						displayContent: prepared.displayContent,
-						authMethods: sessionContext.authMethods,
-					},
-					agentClient,
-				);
+				const result = await sendOp;
 
 				if (result.success) {
 					// Success - clear stored message
@@ -700,6 +795,25 @@ export function useChat(
 					title: "Send Message Failed",
 					message: `Failed to send message: ${error instanceof Error ? error.message : String(error)}`,
 				});
+			} finally {
+				// A steer may have replaced the ref with its own promise
+				if (inFlightSendRef.current === sendOp) {
+					inFlightSendRef.current = null;
+
+					// Turn settled (completed, errored, or stopped): flush
+					// the next queued message. Stop deliberately lets the
+					// queue proceed — × on a chip is how queued items are
+					// cancelled (Paul's call).
+					const next = queuedRef.current[0];
+					if (next) {
+						queuedRef.current = queuedRef.current.slice(1);
+						setQueuedMessages(queuedRef.current);
+						void sendMessageRef.current?.(
+							next.content,
+							next.options,
+						);
+					}
+				}
 			}
 		},
 		[
@@ -714,12 +828,18 @@ export function useChat(
 		],
 	);
 
+	// Keep the self-reference current (see sendMessageRef declaration)
+	sendMessageRef.current = sendMessage;
+
 	return {
 		messages,
 		isSending,
 		streamingPhase,
 		lastUserMessage,
 		errorInfo,
+		queuedMessages,
+		queueMessage,
+		removeQueuedMessage,
 		sendMessage,
 		clearMessages,
 		setInitialMessages,

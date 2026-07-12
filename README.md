@@ -19,6 +19,9 @@ https://github.com/user-attachments/assets/1c538349-b3fb-44dd-a163-7331cbca7824
 
 ## ✨ Features
 
+- 🗂️ **Parallel Sessions**: Run up to 4 agent sessions side by side in one panel — give each its own task, switch with numbered tabs, and glance at the busy dot to see who's finished
+- ⏩ **Message Queueing**: Keep typing while the agent is responding — queued messages send automatically when the current answer finishes, just like Claude Code
+- 💬 **Quick Prompts**: Save your go-to prompts once, then fire them from chips above the message box or a `!` search — they can reference notes with `@[[wikilinks]]`
 - 🔗 **Direct Agent Integration**: Chat with AI coding agents in a dedicated side panel
 - 🖼️ **Image Attachments**: Paste or drag-and-drop images into the chat
 - 📝 **Note Mention Support**: Automatically include the active note, or use `@notename` to reference specific notes
@@ -166,6 +169,9 @@ WSL Mode runs agents inside Windows Subsystem for Linux for better compatibility
 - 🎯 Use the command palette: **"Open agent chat"**
 - 🤖 Click the robot icon in the ribbon
 - 💬 Chat with your configured agent in the side panel
+- 🗂️ Click **+** in the tab strip to run another session in parallel (right-click a tab to close it)
+- ⏩ Type while the agent is responding and press Enter — your message queues and sends when the turn finishes
+- 💬 Set up quick prompts in **Settings → AI Tools → Quick prompts**, then fire them from the chips above the input or by typing `!`
 - 📝 Reference notes using `@notename` syntax
 - 🔄 Switch agents in plugin settings
 - 🎛️ Change models and modes from the dropdowns below the input field
@@ -186,7 +192,7 @@ npm run build
 
 - **Edit Tracking**: Automatically follow the agent's edits — open affected notes and move the cursor as they edit
 - **Chat History Access**: Browse, search, and restore previous chat sessions
-- **Multi-Instance Support**: Run multiple agents simultaneously in separate panels
+- **Session Persistence**: Reopen your parallel session tabs after an Obsidian restart
 
 Have ideas or feature requests? [Open an issue](https://github.com/UltimateAI-org/aitoolsforobsidian/issues) on GitHub!
 

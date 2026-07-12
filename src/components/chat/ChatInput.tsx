@@ -11,6 +11,9 @@ import type {
 	SessionModelState,
 } from "../../domain/models/chat-session";
 import type { ImagePromptContent } from "../../domain/models/prompt-content";
+import type { QueuedMessage } from "../../hooks/useChat";
+import type { QuickPromptSetting } from "../../plugin";
+import { useQuickPrompts } from "../../hooks/useQuickPrompts";
 import type { UseMentionsReturn } from "../../hooks/useMentions";
 import type { UseSlashCommandsReturn } from "../../hooks/useSlashCommands";
 import type { UseAutoMentionReturn } from "../../hooks/useAutoMention";
@@ -75,6 +78,12 @@ export interface ChatInputProps {
 		content: string,
 		images?: ImagePromptContent[],
 	) => Promise<void>;
+	/** Callback to queue a message while the agent is streaming */
+	onQueueMessage: (content: string, images?: ImagePromptContent[]) => void;
+	/** Messages queued to send when the current turn finishes */
+	queuedMessages: QueuedMessage[];
+	/** Callback to remove a queued message (chip dismissed) */
+	onRemoveQueuedMessage: (id: string) => void;
 	/** Callback to stop the current generation */
 	onStopGeneration: () => Promise<void>;
 	/** Callback when restored message has been consumed */
@@ -119,6 +128,9 @@ export function ChatInput({
 	plugin,
 	view,
 	onSendMessage,
+	onQueueMessage,
+	queuedMessages,
+	onRemoveQueuedMessage,
 	onStopGeneration,
 	onRestoredMessageConsumed,
 	modes,
@@ -130,6 +142,9 @@ export function ChatInput({
 }: ChatInputProps) {
 	const logger = useMemo(() => new Logger(plugin), [plugin]);
 	const settings = useSettings(plugin);
+
+	// Quick prompt `!` menu (prompts are configured in settings)
+	const quickPromptMenu = useQuickPrompts(settings.quickPrompts);
 
 	// Local state
 	const [inputValue, setInputValue] = useState("");
@@ -401,6 +416,42 @@ export function ChatInput({
 	);
 
 	/**
+	 * Fire a quick prompt (from a chip or the `!` menu).
+	 * Send-immediately prompts go straight out — queued if the agent is
+	 * streaming. Insert-mode prompts (and any prompt fired while the
+	 * session isn't ready to send) land in the composer for editing.
+	 */
+	const fireQuickPrompt = useCallback(
+		(quickPrompt: QuickPromptSetting) => {
+			quickPromptMenu.close();
+			setHintText(null);
+			setCommandText("");
+
+			const canSend = isSessionReady && !isRestoringSession;
+			if (!quickPrompt.sendImmediately || !canSend) {
+				setInputValue(quickPrompt.prompt);
+				window.setTimeout(() => textareaRef.current?.focus(), 0);
+				return;
+			}
+
+			setInputValue("");
+			if (isSending) {
+				onQueueMessage(quickPrompt.prompt);
+			} else {
+				void onSendMessage(quickPrompt.prompt);
+			}
+		},
+		[
+			quickPromptMenu,
+			isSessionReady,
+			isRestoringSession,
+			isSending,
+			onQueueMessage,
+			onSendMessage,
+		],
+	);
+
+	/**
 	 * Adjust textarea height based on content.
 	 */
 	const adjustTextareaHeight = useCallback(() => {
@@ -443,6 +494,9 @@ export function ChatInput({
 	/**
 	 * Update send button icon color based on state.
 	 */
+	// Whether the composer holds sendable content (text or images)
+	const hasContent = inputValue.trim() !== "" || attachedImages.length > 0;
+
 	const updateIconColor = useCallback(
 		(svg: SVGElement) => {
 			// Remove all state classes
@@ -452,13 +506,12 @@ export function ChatInput({
 				"obsidianaitools-icon-inactive",
 			);
 
-			if (isSending) {
-				// Stop button - always active when sending
+			if (isSending && !hasContent) {
+				// Stop button - streaming with an empty composer
 				svg.classList.add("obsidianaitools-icon-sending");
 			} else {
-				// Send button - active when has input (text or images)
-				const hasContent =
-					inputValue.trim() !== "" || attachedImages.length > 0;
+				// Send button - active when has input (text or images);
+				// during streaming a filled composer means "steer"
 				svg.classList.add(
 					hasContent
 						? "obsidianaitools-icon-active"
@@ -466,20 +519,21 @@ export function ChatInput({
 				);
 			}
 		},
-		[isSending, inputValue, attachedImages.length],
+		[isSending, hasContent],
 	);
 
 	/**
 	 * Handle sending or stopping based on current state.
 	 */
 	const handleSendOrStop = useCallback(async () => {
-		if (isSending) {
+		// Streaming with an empty composer: the button is a stop button
+		if (isSending && !hasContent) {
 			await onStopGeneration();
 			return;
 		}
 
 		// Allow sending if there's text OR images
-		if (!inputValue.trim() && attachedImages.length === 0) return;
+		if (!hasContent) return;
 
 		// Save input value and images before clearing
 		const messageToSend = inputValue.trim();
@@ -497,15 +551,27 @@ export function ChatInput({
 		setHintText(null);
 		setCommandText("");
 
+		// While streaming, queue instead of sending — the message auto-sends
+		// when the current turn finishes (Claude Code semantics)
+		if (isSending) {
+			onQueueMessage(
+				messageToSend,
+				imagesToSend.length > 0 ? imagesToSend : undefined,
+			);
+			return;
+		}
+
 		await onSendMessage(
 			messageToSend,
 			imagesToSend.length > 0 ? imagesToSend : undefined,
 		);
 	}, [
 		isSending,
+		hasContent,
 		inputValue,
 		attachedImages,
 		onSendMessage,
+		onQueueMessage,
 		onStopGeneration,
 	]);
 
@@ -516,8 +582,13 @@ export function ChatInput({
 		(e: React.KeyboardEvent): boolean => {
 			const isSlashCommandActive = slashCommands.isOpen;
 			const isMentionActive = mentions.isOpen;
+			const isQuickPromptActive = quickPromptMenu.isOpen;
 
-			if (!isSlashCommandActive && !isMentionActive) {
+			if (
+				!isSlashCommandActive &&
+				!isMentionActive &&
+				!isQuickPromptActive
+			) {
 				return false;
 			}
 
@@ -526,6 +597,8 @@ export function ChatInput({
 				e.preventDefault();
 				if (isSlashCommandActive) {
 					slashCommands.navigate("down");
+				} else if (isQuickPromptActive) {
+					quickPromptMenu.navigate("down");
 				} else {
 					mentions.navigate("down");
 				}
@@ -536,6 +609,8 @@ export function ChatInput({
 				e.preventDefault();
 				if (isSlashCommandActive) {
 					slashCommands.navigate("up");
+				} else if (isQuickPromptActive) {
+					quickPromptMenu.navigate("up");
 				} else {
 					mentions.navigate("up");
 				}
@@ -550,6 +625,14 @@ export function ChatInput({
 						slashCommands.suggestions[slashCommands.selectedIndex];
 					if (selectedCommand) {
 						handleSelectSlashCommand(selectedCommand);
+					}
+				} else if (isQuickPromptActive) {
+					const selectedPrompt =
+						quickPromptMenu.suggestions[
+							quickPromptMenu.selectedIndex
+						];
+					if (selectedPrompt) {
+						fireQuickPrompt(selectedPrompt);
 					}
 				} else {
 					const selectedSuggestion =
@@ -566,6 +649,8 @@ export function ChatInput({
 				e.preventDefault();
 				if (isSlashCommandActive) {
 					slashCommands.close();
+				} else if (isQuickPromptActive) {
+					quickPromptMenu.close();
 				} else {
 					mentions.close();
 				}
@@ -574,15 +659,19 @@ export function ChatInput({
 
 			return false;
 		},
-		[slashCommands, mentions, handleSelectSlashCommand, selectMention],
+		[
+			slashCommands,
+			mentions,
+			quickPromptMenu,
+			handleSelectSlashCommand,
+			fireQuickPrompt,
+			selectMention,
+		],
 	);
 
 	// Button disabled state - also allow sending if images are attached
 	const isButtonDisabled =
-		!isSending &&
-		((inputValue.trim() === "" && attachedImages.length === 0) ||
-			!isSessionReady ||
-			isRestoringSession);
+		!isSending && (!hasContent || !isSessionReady || isRestoringSession);
 
 	/**
 	 * Handle keyboard events in the textarea.
@@ -603,7 +692,9 @@ export function ChatInput({
 
 				if (shouldSend) {
 					e.preventDefault();
-					if (!isButtonDisabled && !isSending) {
+					// While streaming, Enter steers only when there is
+					// content — an empty Enter must never trigger stop
+					if (isSending ? hasContent : !isButtonDisabled) {
 						void handleSendOrStop();
 					}
 				}
@@ -613,6 +704,7 @@ export function ChatInput({
 		[
 			handleDropdownKeyPress,
 			isSending,
+			hasContent,
 			isButtonDisabled,
 			handleSendOrStop,
 			settings.sendMessageShortcut,
@@ -650,8 +742,11 @@ export function ChatInput({
 
 			// Update slash command suggestions
 			slashCommands.updateSuggestions(newValue, cursorPosition);
+
+			// Update quick prompt suggestions
+			quickPromptMenu.updateSuggestions(newValue, cursorPosition);
 		},
-		[logger, hintText, commandText, mentions, slashCommands],
+		[logger, hintText, commandText, mentions, slashCommands, quickPromptMenu],
 	);
 
 	// Adjust textarea height when input changes
@@ -659,27 +754,20 @@ export function ChatInput({
 		adjustTextareaHeight();
 	}, [inputValue, adjustTextareaHeight]);
 
-	// Update send button icon based on sending state
+	// Update send button icon based on sending/composer state.
+	// While streaming, a filled composer flips the stop square back to a
+	// send arrow: firing it queues the message for the end of the turn.
 	useEffect(() => {
 		if (sendButtonRef.current) {
-			const iconName = isSending ? "square" : "send-horizontal";
+			const iconName =
+				isSending && !hasContent ? "square" : "send-horizontal";
 			setIcon(sendButtonRef.current, iconName);
 			const svg = sendButtonRef.current.querySelector("svg");
 			if (svg) {
 				updateIconColor(svg);
 			}
 		}
-	}, [isSending, updateIconColor]);
-
-	// Update icon color when input or attached images change
-	useEffect(() => {
-		if (sendButtonRef.current) {
-			const svg = sendButtonRef.current.querySelector("svg");
-			if (svg) {
-				updateIconColor(svg);
-			}
-		}
-	}, [inputValue, attachedImages.length, updateIconColor]);
+	}, [isSending, hasContent, updateIconColor]);
 
 	// Auto-focus textarea on mount
 	useEffect(() => {
@@ -833,11 +921,72 @@ export function ChatInput({
 		}
 	}, [currentModelId]);
 
+	// Quick prompts that are complete enough to show (name + prompt text)
+	const firableQuickPrompts = settings.quickPrompts.filter(
+		(qp) => qp.name.trim().length > 0 && qp.prompt.trim().length > 0,
+	);
+
+	// Cap the chip row; the rest stay reachable via the `!` menu
+	const MAX_VISIBLE_QUICK_PROMPTS = 6;
+	const visibleQuickPrompts = firableQuickPrompts.slice(
+		0,
+		MAX_VISIBLE_QUICK_PROMPTS,
+	);
+	const overflowPromptCount =
+		firableQuickPrompts.length - visibleQuickPrompts.length;
+
+	/** Open the `!` menu pre-seeded so overflow prompts are one click away */
+	const openQuickPromptMenu = useCallback(() => {
+		setInputValue("!");
+		quickPromptMenu.updateSuggestions("!", 1);
+		window.setTimeout(() => textareaRef.current?.focus(), 0);
+	}, [quickPromptMenu]);
+
 	// Placeholder text
-	const placeholder = `Message ${agentLabel} - @ to mention notes${availableCommands.length > 0 ? ", / for commands" : ""}`;
+	const placeholder = `Message ${agentLabel} - @ to mention notes${availableCommands.length > 0 ? ", / for commands" : ""}${firableQuickPrompts.length > 0 ? ", ! for prompts" : ""}`;
 
 	return (
 		<div className="obsidianaitools-chat-input-container">
+			{/* Quick Prompt Chips */}
+			{firableQuickPrompts.length > 0 && (
+				<div className="obsidianaitools-quick-prompt-strip">
+					{visibleQuickPrompts.map((qp) => (
+						<button
+							key={qp.id}
+							className="obsidianaitools-quick-prompt-chip"
+							title={qp.prompt}
+							onClick={() => fireQuickPrompt(qp)}
+						>
+							{qp.name}
+						</button>
+					))}
+					{overflowPromptCount > 0 && (
+						<button
+							className="obsidianaitools-quick-prompt-chip"
+							title="Show all quick prompts"
+							onClick={openQuickPromptMenu}
+						>
+							+{overflowPromptCount} more
+						</button>
+					)}
+				</div>
+			)}
+
+			{/* Quick Prompt Dropdown (`!` menu) */}
+			{quickPromptMenu.isOpen && (
+				<SuggestionDropdown
+					type="quick-prompt"
+					items={quickPromptMenu.suggestions}
+					selectedIndex={quickPromptMenu.selectedIndex}
+					onSelect={(item) =>
+						fireQuickPrompt(item as QuickPromptSetting)
+					}
+					onClose={quickPromptMenu.close}
+					plugin={plugin}
+					view={view}
+				/>
+			)}
+
 			{/* Mention Dropdown */}
 			{mentions.isOpen && (
 				<SuggestionDropdown
@@ -953,6 +1102,33 @@ export function ChatInput({
 					/>
 				)}
 
+				{/* Queued messages — auto-send when the turn finishes */}
+				{queuedMessages.length > 0 && (
+					<div className="obsidianaitools-queued-strip">
+						{queuedMessages.map((queued) => (
+							<div
+								key={queued.id}
+								className="obsidianaitools-queued-chip"
+								title={queued.content}
+							>
+								<span className="obsidianaitools-queued-chip-label">
+									Queued: {queued.content}
+								</span>
+								<button
+									className="obsidianaitools-queued-chip-remove"
+									aria-label="Remove queued message"
+									title="Remove queued message"
+									onClick={() =>
+										onRemoveQueuedMessage(queued.id)
+									}
+								>
+									×
+								</button>
+							</div>
+						))}
+					</div>
+				)}
+
 				{/* Input Actions (Mode Selector + Model Selector + Send Button) */}
 				<div className="obsidianaitools-chat-input-actions">
 					{/* Mode Selector */}
@@ -1000,12 +1176,14 @@ export function ChatInput({
 						ref={sendButtonRef}
 						onClick={() => void handleSendOrStop()}
 						disabled={isButtonDisabled}
-						className={`obsidianaitools-chat-send-button ${isSending ? "sending" : ""} ${isButtonDisabled ? "obsidianaitools-disabled" : ""}`}
+						className={`obsidianaitools-chat-send-button ${isSending && !hasContent ? "sending" : ""} ${isButtonDisabled ? "obsidianaitools-disabled" : ""}`}
 						title={
 							!isSessionReady
 								? "Connecting..."
 								: isSending
-									? "Stop generation"
+									? hasContent
+										? "Queue message (sends when the current response finishes)"
+										: "Stop generation"
 									: "Send message"
 						}
 					></button>

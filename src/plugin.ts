@@ -34,6 +34,20 @@ export type { AgentEnvVar, CustomAgentSettings };
  */
 export type SendMessageShortcut = "enter" | "cmd-enter";
 
+/**
+ * A user-defined quick prompt, managed in settings.
+ * Fired from the chip row above the composer or the `!` menu in the input.
+ */
+export interface QuickPromptSetting {
+	id: string;
+	/** Label shown on the chip and in the `!` menu */
+	name: string;
+	/** Message text sent to the agent (may contain @[[wikilink]] mentions) */
+	prompt: string;
+	/** true: fire immediately; false: insert into composer for editing */
+	sendImmediately: boolean;
+}
+
 export interface AgentClientPluginSettings {
 	gemini: Omit<GeminiAgentSettings, "apiKey">;
 	claude: Omit<ClaudeAgentSettings, "apiKey">;
@@ -59,6 +73,8 @@ export interface AgentClientPluginSettings {
 	windowsWslDistribution?: string;
 	// Input behavior
 	sendMessageShortcut: SendMessageShortcut;
+	// Quick prompts (chip row above the composer + `!` menu)
+	quickPrompts: QuickPromptSetting[];
 	// Display settings
 	displaySettings: {
 		autoCollapseDiffs: boolean;
@@ -137,6 +153,7 @@ const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	windowsWslMode: false,
 	windowsWslDistribution: undefined,
 	sendMessageShortcut: "enter",
+	quickPrompts: [],
 	displaySettings: {
 		autoCollapseDiffs: false,
 		diffCollapseThreshold: 10,
@@ -158,7 +175,12 @@ export default class AgentClientPlugin extends Plugin {
 	settingsStore!: SettingsStore;
 	errorLog!: ErrorLog;
 
-	private _acpAdapter: AcpAdapter | null = null;
+	/**
+	 * All live ACP adapters. Each chat tab owns one adapter (its own agent
+	 * process and connection); the registry exists so plugin-lifecycle
+	 * cleanup and file-lock operations can reach every process.
+	 */
+	private adapters = new Set<AcpAdapter>();
 
 	async onload() {
 		try {
@@ -241,15 +263,8 @@ export default class AgentClientPlugin extends Plugin {
 			// Note: We don't wait for disconnect to complete to avoid blocking quit
 			this.registerEvent(
 				this.app.workspace.on("quit", () => {
-					if (this._acpAdapter) {
-						// Fire and forget - don't block Obsidian from quitting
-						this._acpAdapter.disconnect().catch((error) => {
-							console.warn(
-								"[AgentClient] Quit cleanup error:",
-								error,
-							);
-						});
-					}
+					// Fire and forget - don't block Obsidian from quitting
+					this.disconnectAllAdapters("Quit");
 				}),
 			);
 			console.debug("[AI Tools] Plugin loaded successfully");
@@ -265,18 +280,34 @@ export default class AgentClientPlugin extends Plugin {
 	}
 
 	onunload() {
-		if (this._acpAdapter) {
-			// Fire and forget, but ensure we kill subprocesses
-			this._acpAdapter.disconnect().catch((error) => {
-				console.warn("[AgentClient] Unload cleanup error:", error);
+		// Fire and forget, but ensure we kill all tab subprocesses
+		this.disconnectAllAdapters("Unload");
+	}
+
+	/**
+	 * Create a new ACP adapter (own agent process/connection) and track it.
+	 * Each chat tab calls this once and releases on unmount.
+	 */
+	createAdapter(): AcpAdapter {
+		const adapter = new AcpAdapter(this);
+		this.adapters.add(adapter);
+		return adapter;
+	}
+
+	/** Stop tracking an adapter (its owner is responsible for disconnect). */
+	releaseAdapter(adapter: AcpAdapter): void {
+		this.adapters.delete(adapter);
+	}
+
+	private disconnectAllAdapters(context: string): void {
+		for (const adapter of this.adapters) {
+			adapter.disconnect().catch((error) => {
+				console.warn(
+					`[AgentClient] ${context} cleanup error:`,
+					error,
+				);
 			});
 		}
-	}
-	getOrCreateAdapter(): AcpAdapter {
-		if (!this._acpAdapter) {
-			this._acpAdapter = new AcpAdapter(this);
-		}
-		return this._acpAdapter;
 	}
 
 	/**
@@ -289,9 +320,11 @@ export default class AgentClientPlugin extends Plugin {
 	 * handles before the caller proceeds.
 	 */
 	async disconnectAgentForFileOperation(): Promise<void> {
-		if (!this._acpAdapter) return;
+		if (this.adapters.size === 0) return;
 		try {
-			await this._acpAdapter.disconnect();
+			await Promise.all(
+				[...this.adapters].map((adapter) => adapter.disconnect()),
+			);
 		} catch (error) {
 			console.warn(
 				"[AgentClient] disconnect-for-file-op failed:",
@@ -639,6 +672,26 @@ export default class AgentClientPlugin extends Plugin {
 				rawSettings.sendMessageShortcut === "cmd-enter"
 					? rawSettings.sendMessageShortcut
 					: DEFAULT_SETTINGS.sendMessageShortcut,
+			quickPrompts: Array.isArray(rawSettings.quickPrompts)
+				? rawSettings.quickPrompts
+						.filter(
+							(qp: unknown): qp is Record<string, unknown> =>
+								typeof qp === "object" && qp !== null,
+						)
+						.map((qp) => ({
+							id:
+								typeof qp.id === "string" && qp.id.length > 0
+									? qp.id
+									: crypto.randomUUID(),
+							name: typeof qp.name === "string" ? qp.name : "",
+							prompt:
+								typeof qp.prompt === "string" ? qp.prompt : "",
+							sendImmediately:
+								typeof qp.sendImmediately === "boolean"
+									? qp.sendImmediately
+									: true,
+						}))
+				: DEFAULT_SETTINGS.quickPrompts,
 			displaySettings: (() => {
 				const rawDisplay = rawSettings.displaySettings as
 					| Record<string, unknown>

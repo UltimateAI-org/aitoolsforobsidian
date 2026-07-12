@@ -2,6 +2,66 @@ import * as React from "react";
 import { HeaderButton } from "./HeaderButton";
 
 /**
+ * One chip in the session tab strip.
+ */
+export interface TabStripTab {
+	id: string;
+	/** 1-based display number */
+	number: number;
+	/** Whether this tab's agent is currently working */
+	busy: boolean;
+}
+
+/**
+ * State + callbacks for the session tab strip, provided by TabbedChat.
+ */
+export interface TabStripState {
+	tabs: TabStripTab[];
+	activeTabId: string;
+	canAddTab: boolean;
+	onSelectTab: (id: string) => void;
+	onNewTab: () => void;
+	onCloseTab: (id: string) => void;
+}
+
+/**
+ * Session tab strip — numbered chips + add button. Rendered by
+ * ChatComponent in its own row directly above the chat area.
+ */
+export function TabStrip({ strip }: { strip: TabStripState }) {
+	return (
+		<div className="obsidianaitools-tab-strip">
+			{strip.tabs.map((tab) => (
+				<button
+					key={tab.id}
+					className={`obsidianaitools-tab-chip${tab.id === strip.activeTabId ? " is-active" : ""}`}
+					title={`Session ${tab.number} — right-click to close`}
+					onClick={() => strip.onSelectTab(tab.id)}
+					onContextMenu={(e) => {
+						e.preventDefault();
+						strip.onCloseTab(tab.id);
+					}}
+				>
+					{tab.number}
+					{tab.busy && (
+						<span className="obsidianaitools-tab-chip-busy" />
+					)}
+				</button>
+			))}
+			{strip.canAddTab && (
+				<button
+					className="obsidianaitools-tab-chip obsidianaitools-tab-chip-add"
+					title="New session tab"
+					onClick={strip.onNewTab}
+				>
+					+
+				</button>
+			)}
+		</div>
+	);
+}
+
+/**
  * Props for ChatHeader component
  */
 export interface ChatHeaderProps {
