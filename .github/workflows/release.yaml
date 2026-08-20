@@ -18,12 +18,24 @@ jobs:
       tag_name: ${{ steps.validate.outputs.tag_name }}
     steps:
       - uses: actions/checkout@v4
-      - name: Validate tag matches manifest version
+        with:
+          fetch-depth: 0 # need full tag history to find the previous release
+
+      - name: Validate version
         id: validate
         run: |
-          # Get tag from ref, or default to manifest version if manually triggered
-          manifest_version=$(grep -o '"version": *"[^"]*"' manifest.json | sed 's/.*: *"\([^"]*\)"/\1/')
-          
+          set -euo pipefail
+
+          manifest_version=$(node -p "require('./manifest.json').version")
+          package_version=$(node -p "require('./package.json').version")
+
+          # 1. manifest.json and package.json must agree
+          if [ "$manifest_version" != "$package_version" ]; then
+            echo "::error::manifest.json ($manifest_version) and package.json ($package_version) disagree"
+            exit 1
+          fi
+
+          # 2. the tag being released must match the committed version
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             tag="${GITHUB_REF#refs/tags/}"
           else
@@ -31,8 +43,45 @@ jobs:
           fi
 
           if [ "$tag" != "v$manifest_version" ]; then
-            echo "Tag '$tag' does not match manifest version 'v$manifest_version'"
+            echo "::error::Tag '$tag' does not match manifest version 'v$manifest_version'"
             exit 1
+          fi
+
+          # 3. versions.json must carry an entry for this release
+          if ! node -e "process.exit(require('./versions.json')['$manifest_version'] ? 0 : 1)"; then
+            echo "::error::versions.json has no entry for $manifest_version (run 'npm version' rather than editing by hand)"
+            exit 1
+          fi
+
+          # 4. the version must be a legal successor of the last release.
+          #    A plain "must be greater" check is not enough: 0.70.0 is
+          #    semver-greater than 0.9.7, which is how v0.70.0 shipped by
+          #    mistake (it was the claude-agent-acp ceiling, not a plugin
+          #    version). Only patch+1, minor+1, or major+1 are accepted.
+          previous=$(git tag --list 'v*' --sort=-v:refname             | grep -v "^$tag$"             | head -n 1             | sed 's/^v//')
+
+          if [ -z "$previous" ]; then
+            echo "No previous release tag found; skipping successor check"
+          else
+            if ! node -e "
+              const [pa,pb,pc] = '$previous'.split('.').map(Number);
+              const next = new Set([
+                [pa, pb, pc + 1].join('.'),
+                [pa, pb + 1, 0].join('.'),
+                [pa + 1, 0, 0].join('.'),
+              ]);
+              if (!next.has('$manifest_version')) {
+                console.error(
+                  'Version $manifest_version is not a legal successor of $previous. ' +
+                  'Expected one of: ' + [...next].join(', ')
+                );
+                process.exit(1);
+              }
+            "; then
+              echo "::error::Refusing to release $manifest_version after $previous"
+              exit 1
+            fi
+            echo "Successor check passed: $previous -> $manifest_version"
           fi
 
           echo "version=$manifest_version" >> "$GITHUB_OUTPUT"
