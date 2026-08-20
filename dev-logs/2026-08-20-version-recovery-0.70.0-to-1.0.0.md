@@ -49,10 +49,43 @@ Paul's call, 2026-08-20.
   being served to users who have not yet updated
 - `src/shared/version-checker.ts`: **unchanged** — ACP ceiling stays 0.70.0
 
-### Follow-up recommendation (not done here)
+### Prevention — release workflow consolidation
 
-The repo carries **two** release workflows, `.github/workflows/release.yaml`
-and `.github/workflows/release.yml`, which is worth reconciling. Whichever
-survives should validate the dispatched version against the current
-`package.json` — rejecting any input that is not a semver increment of the
-existing version would have caught `0.70.0` before it shipped.
+**Status**: ✅ Done
+
+The repo carried two release workflows. They are now one.
+
+**Deleted `.github/workflows/release.yml`** ("Release + Patch Version
+Increment") — the workflow that caused this incident. It accepted an
+arbitrary `version` dispatch input with no validation, wrote it into
+`package.json`/`manifest.json`, committed as `github-actions[bot]`, and
+then ran `git push origin master --force` plus force-pushed tags. Beyond
+the version bug, a CI job force-pushing `master` is a standing hazard.
+
+**Kept `.github/workflows/release.yaml`** ("Release"). It never invents a
+version: it releases what is already committed, triggered by pushing a
+`v*` tag. Version bumps now happen in a reviewed PR (`npm version` runs
+`version-bump.mjs`, which updates `manifest.json` and `versions.json`),
+so a wrong number has to survive code review before it can ship.
+
+Its `validate` job was hardened with four checks:
+
+1. `manifest.json` and `package.json` versions must agree
+2. the tag must match the committed manifest version (pre-existing check)
+3. `versions.json` must contain an entry for the release
+4. the version must be a **legal successor** of the previous release tag —
+   only patch+1, minor+1, or major+1 are accepted
+
+Check 4 is the one that catches this incident. A simple "must be greater"
+rule would not have: `0.70.0` *is* semver-greater than `0.9.7`. Requiring
+a legal successor means the only versions accepted after 0.9.7 are 0.9.8,
+0.10.0, and 1.0.0 — so `0.70.0` is rejected, while the 1.0.0 recovery
+release passes. Verified against both cases plus 0.10.0 (allow) and
+2.0.0 (reject, version skipping).
+
+### Release procedure from here
+
+1. Bump in a PR: `npm version patch|minor|major` (updates package.json,
+   manifest.json, versions.json), commit, open PR, merge
+2. Tag the merged commit `vX.Y.Z` and push the tag
+3. `release.yaml` validates, lints, builds, and publishes the release
