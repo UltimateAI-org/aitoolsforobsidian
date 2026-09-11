@@ -26,6 +26,9 @@ import {
 import { ErrorLogModal } from "./ErrorLogModal";
 import { OnboardingModal } from "../OnboardingModal";
 
+/** Where users without an account go to sign up and get an API key. */
+const SIGNUP_URL = "https://obsidianaitools.com/";
+
 export class AgentClientSettingTab extends PluginSettingTab {
 	plugin: AgentClientPlugin;
 	private agentSelector: DropdownComponent | null = null;
@@ -181,6 +184,16 @@ export class AgentClientSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl).setName("API Configuration").setHeading();
 
+		// Assigned just below; the API key field toggles its visibility as the
+		// user types, so the prompt disappears the moment a key is entered.
+		let signupSetting: Setting | null = null;
+		const syncSignupVisibility = (apiKey: string) => {
+			signupSetting?.settingEl.toggleClass(
+				"obsidianaitools-hidden",
+				apiKey.trim().length > 0,
+			);
+		};
+
 		new Setting(containerEl)
 			.setName("API Key")
 			.setDesc(
@@ -191,11 +204,29 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.apiKey)
 					.onChange(async (value) => {
 						this.plugin.settings.apiKey = value.trim();
+						syncSignupVisibility(value);
 						await this.saveAndNotify();
 					});
 				// Make the input a password field
 				text.inputEl.type = "password";
 			});
+
+		// Sign-up prompt — shown only while no API key is configured, since
+		// that is the one state where the user cannot use the plugin at all.
+		signupSetting = new Setting(containerEl)
+			.setName("Don't have an account?")
+			.setDesc(
+				"Sign up to get your API key and start using AI Tools in your vault.",
+			)
+			.addButton((button) =>
+				button
+					.setButtonText("Sign up")
+					.setCta()
+					.onClick(() => {
+						window.open(SIGNUP_URL, "_blank");
+					}),
+			);
+		syncSignupVisibility(this.plugin.settings.apiKey);
 
 		// API Key Instructions
 		const instructionsDiv = containerEl.createDiv({
