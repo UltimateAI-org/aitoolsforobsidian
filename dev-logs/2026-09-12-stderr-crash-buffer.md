@@ -91,8 +91,13 @@ constraint: capture-time filtering is irreversible and its failure mode
    console shows no red `[AcpAdapter] … stderr:` entries with debug mode
    off; Settings → Diagnostics → error log gains no new entries.
 2. **Debug mode on** — stderr reappears in the console as `console.debug`.
-3. **Crash path** — point an agent at an invalid command so the process
-   exits non-zero; error log should gain one entry titled
+3. **Crash path** — the agent must actually *emit stderr* and then exit
+   non-zero. Do **not** test with a nonexistent command path: the spawn
+   fails before the process writes anything, so the buffer is empty and
+   `flushStderrBuffer` correctly no-ops (that path already has its own
+   "command could not be found" error). Use a real binary that prints to
+   stderr and exits non-zero — e.g. the agent with an invalid flag.
+   Expect one error-log entry titled
    "… process exited unexpectedly (code: …)" containing the buffered
    output.
 4. **Clean shutdown** — close the chat panel / switch agents; no crash
