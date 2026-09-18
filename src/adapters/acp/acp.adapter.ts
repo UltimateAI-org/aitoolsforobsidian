@@ -32,6 +32,7 @@ import type {
 	SlashCommand,
 	SessionModeState,
 	SessionModelState,
+	SessionConfigOption,
 } from "src/domain/models/chat-session";
 import {
 	wrapCommandForWsl,
@@ -594,6 +595,22 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 					auth: {
 						_meta: { gateway: true },
 					},
+					// JetBrains AIR extension: advertising `recommendedValue`
+					// makes claude-agent-acp seed select config options (effort,
+					// model) with a concrete recommended value instead of a
+					// "Default" placeholder, and apply that value to Claude Code
+					// on session start and model switch. Without it, effort
+					// shows "Default" and resolves to Claude Code's own model
+					// default (xhigh on current models), which the plugin
+					// cannot display.
+					_meta: {
+						jetbrains: {
+							air: {
+								version: 1,
+								capabilities: ["recommendedValue"],
+							},
+						},
+					},
 				},
 				clientInfo: {
 					name: "aitoolsforobsidian",
@@ -816,10 +833,21 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 				);
 			}
 
+			// Convert config options (effort, fast mode, ...) to domain format
+			const configOptions = AcpTypeConverter.toSessionConfigOptions(
+				sessionResult.configOptions,
+			);
+			if (configOptions) {
+				this.logger.log(
+					`[AcpAdapter] Session config options: ${configOptions.map((o) => `${o.id}=${o.currentValue}`).join(", ")}`,
+				);
+			}
+
 			return {
 				sessionId: sessionResult.sessionId,
 				modes,
 				models,
+				configOptions,
 			};
 		} catch (error) {
 			this.logger.error("[AcpAdapter] New Session Error:", error);
@@ -1188,6 +1216,45 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 	}
 
 	/**
+	 * Implementation of IAgentClient.setSessionConfigOption()
+	 */
+	async setSessionConfigOption(
+		sessionId: string,
+		configId: string,
+		value: string,
+	): Promise<SessionConfigOption[] | undefined> {
+		if (!this.connection) {
+			throw new Error(
+				"Connection not initialized. Call initialize() first.",
+			);
+		}
+
+		this.logger.log(
+			`[AcpAdapter] Setting config option ${configId}=${value} for session: ${sessionId}`,
+		);
+
+		try {
+			const response = await this.connection.setSessionConfigOption({
+				sessionId,
+				configId,
+				value,
+			});
+			this.logger.log(
+				`[AcpAdapter] Config option ${configId} set to: ${value}`,
+			);
+			return AcpTypeConverter.toSessionConfigOptions(
+				response.configOptions,
+			);
+		} catch (error) {
+			this.logger.error(
+				"[AcpAdapter] Failed to set session config option:",
+				error,
+			);
+			throw error;
+		}
+	}
+
+	/**
 	 * Register a callback to receive session updates from the agent.
 	 *
 	 * This unified callback receives all session update events:
@@ -1198,6 +1265,7 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 	 * - plan: Agent's task plan
 	 * - available_commands_update: Slash commands changed
 	 * - current_mode_update: Mode changed
+	 * - config_option_update: Session config options changed
 	 */
 	onSessionUpdate(callback: (update: SessionUpdate) => void): void {
 		this.sessionUpdateCallback = callback;
@@ -1477,6 +1545,23 @@ To fix:
 					type: "current_mode_update",
 					sessionId,
 					currentModeId: update.currentModeId,
+				});
+				break;
+			}
+
+			case "config_option_update": {
+				const configOptions =
+					AcpTypeConverter.toSessionConfigOptions(
+						update.configOptions,
+					) ?? [];
+				this.logger.log(
+					`[AcpAdapter] config_option_update: ${configOptions.map((o) => `${o.id}=${o.currentValue}`).join(", ")}`,
+				);
+
+				this.sessionUpdateCallback?.({
+					type: "config_option_update",
+					sessionId,
+					configOptions,
 				});
 				break;
 			}
@@ -1890,6 +1975,9 @@ To fix:
 				sessionId,
 				modes,
 				models,
+				configOptions: AcpTypeConverter.toSessionConfigOptions(
+					response.configOptions,
+				),
 			};
 		} catch (error) {
 			this.logger.error("[AcpAdapter] Load Session Error:", error);
@@ -1958,6 +2046,9 @@ To fix:
 				sessionId,
 				modes,
 				models,
+				configOptions: AcpTypeConverter.toSessionConfigOptions(
+					response.configOptions,
+				),
 			};
 		} catch (error) {
 			this.logger.error("[AcpAdapter] Resume Session Error:", error);
@@ -2029,6 +2120,9 @@ To fix:
 				sessionId: newSessionId,
 				modes,
 				models,
+				configOptions: AcpTypeConverter.toSessionConfigOptions(
+					response.configOptions,
+				),
 			};
 		} catch (error) {
 			this.logger.error("[AcpAdapter] Fork Session Error:", error);

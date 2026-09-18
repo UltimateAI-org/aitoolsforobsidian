@@ -1,4 +1,8 @@
-import type { SessionModeState, SessionModelState } from "./chat-session";
+import type {
+	SessionModeState,
+	SessionModelState,
+	SessionConfigOption,
+} from "./chat-session";
 
 /**
  * Session metadata from session/list response.
@@ -39,6 +43,8 @@ export interface LoadSessionResult {
 	modes?: SessionModeState;
 	/** Session models (if available) */
 	models?: SessionModelState;
+	/** Session config options (if available) */
+	configOptions?: SessionConfigOption[];
 }
 
 /**
@@ -54,6 +60,8 @@ export interface ResumeSessionResult {
 	modes?: SessionModeState;
 	/** Session models (if available) */
 	models?: SessionModelState;
+	/** Session config options (if available) */
+	configOptions?: SessionConfigOption[];
 }
 
 /**
@@ -68,6 +76,8 @@ export interface ForkSessionResult {
 	modes?: SessionModeState;
 	/** Session models (if available) */
 	models?: SessionModelState;
+	/** Session config options (if available) */
+	configOptions?: SessionConfigOption[];
 }
 
 /**

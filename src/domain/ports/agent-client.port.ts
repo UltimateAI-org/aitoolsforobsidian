@@ -16,6 +16,7 @@ import type {
 	AuthenticationMethod,
 	SessionModeState,
 	SessionModelState,
+	SessionConfigOption,
 } from "../models/chat-session";
 import type { SessionUpdate } from "../models/session-update";
 import type { AgentError } from "../models/agent-error";
@@ -214,6 +215,12 @@ export interface NewSessionResult {
 	 * Undefined if the agent does not support model selection.
 	 */
 	models?: SessionModelState;
+
+	/**
+	 * Select-style session config options (effort, fast mode, ...).
+	 * Undefined if the agent does not advertise any.
+	 */
+	configOptions?: SessionConfigOption[];
 }
 
 /**
@@ -297,6 +304,7 @@ export interface IAgentClient {
 	 * - plan: Agent's task plan
 	 * - available_commands_update: Slash commands changed
 	 * - current_mode_update: Mode changed
+	 * - config_option_update: Session config options changed
 	 *
 	 * This is the unified callback for all session updates.
 	 *
@@ -367,6 +375,24 @@ export interface IAgentClient {
 	 * @param modelId - The model ID to set
 	 */
 	setSessionModel(sessionId: string, modelId: string): Promise<void>;
+
+	/**
+	 * Set a session config option (effort level, fast mode, ...).
+	 *
+	 * The option and value must come from the configOptions the agent
+	 * advertised. The agent answers with the full updated option list, and
+	 * may additionally send a config_option_update notification.
+	 *
+	 * @param sessionId - Session identifier
+	 * @param configId - ID of the config option (e.g., "effort")
+	 * @param value - Value identifier to select (e.g., "medium")
+	 * @returns Updated option list if the agent returned one
+	 */
+	setSessionConfigOption(
+		sessionId: string,
+		configId: string,
+		value: string,
+	): Promise<SessionConfigOption[] | undefined>;
 
 	// ========================================================================
 	// Session Management Methods

@@ -4,6 +4,7 @@ import type {
 	SessionState,
 	SessionModeState,
 	SessionModelState,
+	SessionConfigOption,
 	SlashCommand,
 	AuthenticationMethod,
 } from "../domain/models/chat-session";
@@ -108,11 +109,13 @@ export interface UseAgentSessionReturn {
 	 * @param sessionId - New session ID
 	 * @param modes - Session modes (optional)
 	 * @param models - Session models (optional)
+	 * @param configOptions - Session config options (optional)
 	 */
 	updateSessionFromLoad: (
 		sessionId: string,
 		modes?: SessionModeState,
 		models?: SessionModelState,
+		configOptions?: SessionConfigOption[],
 	) => void;
 
 	/**
@@ -140,6 +143,20 @@ export interface UseAgentSessionReturn {
 	 * @param modelId - ID of the model to set
 	 */
 	setModel: (modelId: string) => Promise<void>;
+
+	/**
+	 * Callback to replace the session config options.
+	 * Called by AcpAdapter when agent sends config_option_update.
+	 */
+	updateConfigOptions: (configOptions: SessionConfigOption[]) => void;
+
+	/**
+	 * Set a session config option (effort level, fast mode, ...).
+	 * Sends a request to the agent to change the option.
+	 * @param configId - ID of the option (e.g., "effort")
+	 * @param value - Value identifier to select
+	 */
+	setConfigOption: (configId: string, value: string) => Promise<void>;
 }
 
 // ============================================================================
@@ -314,6 +331,7 @@ function createInitialSession(
 		availableCommands: undefined,
 		modes: undefined,
 		models: undefined,
+		configOptions: undefined,
 		createdAt: new Date(),
 		lastActivityAt: new Date(),
 		workingDirectory,
@@ -403,6 +421,7 @@ export function useAgentSession(
 			availableCommands: undefined,
 			modes: undefined,
 			models: undefined,
+			configOptions: undefined,
 			// Keep capabilities/info from previous session if same agent
 			// They will be updated if re-initialization is needed
 			promptCapabilities: prev.promptCapabilities,
@@ -498,6 +517,7 @@ export function useAgentSession(
 				authMethods: authMethods,
 				modes: sessionResult.modes,
 				models: sessionResult.models,
+				configOptions: sessionResult.configOptions,
 				// Only update capabilities/info if we re-initialized
 				// Otherwise, keep the previous value (from the same agent)
 				promptCapabilities: needsInitialize
@@ -548,6 +568,7 @@ export function useAgentSession(
 				availableCommands: undefined,
 				modes: undefined,
 				models: undefined,
+				configOptions: undefined,
 				promptCapabilities: prev.promptCapabilities,
 				createdAt: new Date(),
 				lastActivityAt: new Date(),
@@ -640,6 +661,7 @@ export function useAgentSession(
 					authMethods: authMethods,
 					modes: loadResult.modes,
 					models: loadResult.models,
+					configOptions: loadResult.configOptions,
 					promptCapabilities: needsInitialize
 						? promptCapabilities
 						: prev.promptCapabilities,
@@ -757,6 +779,7 @@ export function useAgentSession(
 				availableCommands: undefined,
 				modes: undefined,
 				models: undefined,
+				configOptions: undefined,
 				promptCapabilities: undefined,
 				agentCapabilities: undefined,
 				agentInfo: undefined,
@@ -906,6 +929,73 @@ export function useAgentSession(
 	);
 
 	/**
+	 * Replace the session config options.
+	 * Called by AcpAdapter when receiving config_option_update.
+	 */
+	const updateConfigOptions = useCallback(
+		(configOptions: SessionConfigOption[]) => {
+			setSession((prev) => ({
+				...prev,
+				configOptions,
+			}));
+		},
+		[],
+	);
+
+	/**
+	 * Set a session config option (effort level, fast mode, ...).
+	 * Sends a request to the agent to change the option.
+	 */
+	const setConfigOption = useCallback(
+		async (configId: string, value: string) => {
+			if (!session.sessionId) {
+				console.warn("Cannot set config option: no active session");
+				return;
+			}
+
+			// Store previous options for rollback on error
+			const previousOptions = session.configOptions;
+
+			// Optimistic update - update UI immediately
+			setSession((prev) => {
+				if (!prev.configOptions) return prev;
+				return {
+					...prev,
+					configOptions: prev.configOptions.map((option) =>
+						option.id === configId
+							? { ...option, currentValue: value }
+							: option,
+					),
+				};
+			});
+
+			try {
+				const updated = await agentClient.setSessionConfigOption(
+					session.sessionId,
+					configId,
+					value,
+				);
+				// The agent returns the full reconciled list (e.g. a model
+				// switch can rebuild the effort choices). Prefer it over the
+				// optimistic state when present.
+				if (updated) {
+					setSession((prev) => ({ ...prev, configOptions: updated }));
+				}
+			} catch (error) {
+				console.error("Failed to set config option:", error);
+				// Rollback to previous options on error
+				if (previousOptions) {
+					setSession((prev) => ({
+						...prev,
+						configOptions: previousOptions,
+					}));
+				}
+			}
+		},
+		[agentClient, session.sessionId, session.configOptions],
+	);
+
+	/**
 	 * Update session state after loading/resuming/forking a session.
 	 * Called by useSessionHistory after a successful session operation.
 	 */
@@ -914,6 +1004,7 @@ export function useAgentSession(
 			sessionId: string,
 			modes?: SessionModeState,
 			models?: SessionModelState,
+			configOptions?: SessionConfigOption[],
 		) => {
 			setSession((prev) => ({
 				...prev,
@@ -921,6 +1012,7 @@ export function useAgentSession(
 				state: "ready",
 				modes: modes ?? prev.modes,
 				models: models ?? prev.models,
+				configOptions: configOptions ?? prev.configOptions,
 				lastActivityAt: new Date(),
 			}));
 		},
@@ -943,5 +1035,7 @@ export function useAgentSession(
 		updateCurrentMode,
 		setMode,
 		setModel,
+		updateConfigOptions,
+		setConfigOption,
 	};
 }
