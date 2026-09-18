@@ -17,7 +17,7 @@ import type {
 	ToolCallStatus,
 	PermissionOption,
 } from "./chat-message";
-import type { SlashCommand } from "./chat-session";
+import type { SlashCommand, SessionConfigOption } from "./chat-session";
 
 // ============================================================================
 // Base Type
@@ -133,6 +133,16 @@ export interface CurrentModeUpdate extends SessionUpdateBase {
 	currentModeId: string;
 }
 
+/**
+ * Update to session config options.
+ * Sent with the full option list whenever any option or its choices change
+ * (e.g., effort levels are rebuilt after a model switch).
+ */
+export interface ConfigOptionUpdate extends SessionUpdateBase {
+	type: "config_option_update";
+	configOptions: SessionConfigOption[];
+}
+
 // ============================================================================
 // Union Type
 // ============================================================================
@@ -149,6 +159,7 @@ export interface CurrentModeUpdate extends SessionUpdateBase {
  * - plan: Agent's task plan
  * - available_commands_update: Slash commands changed
  * - current_mode_update: Mode changed
+ * - config_option_update: Session config options changed
  *
  * All session update types include a sessionId field to identify which
  * session the update belongs to. This enables filtering/routing of updates
@@ -162,4 +173,5 @@ export type SessionUpdate =
 	| ToolCallUpdate
 	| Plan
 	| AvailableCommandsUpdate
-	| CurrentModeUpdate;
+	| CurrentModeUpdate
+	| ConfigOptionUpdate;

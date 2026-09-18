@@ -9,6 +9,7 @@ import type {
 	ChatSession,
 	SessionModeState,
 	SessionModelState,
+	SessionConfigOption,
 } from "../domain/models/chat-session";
 import type { ChatMessage } from "../domain/models/chat-message";
 import {
@@ -32,11 +33,13 @@ export interface SessionLoadCallback {
 	 * @param sessionId - ID of the session (new session ID for fork)
 	 * @param modes - Available modes from the session
 	 * @param models - Available models from the session
+	 * @param configOptions - Config options from the session
 	 */
 	(
 		sessionId: string,
 		modes?: SessionModeState,
 		models?: SessionModelState,
+		configOptions?: SessionConfigOption[],
 	): void;
 }
 
@@ -409,6 +412,7 @@ export function useSessionHistory(
 							result.sessionId,
 							result.modes,
 							result.models,
+							result.configOptions,
 						);
 
 						// Restore local messages (may have already resolved)
@@ -430,6 +434,7 @@ export function useSessionHistory(
 						result.sessionId,
 						result.modes,
 						result.models,
+						result.configOptions,
 					);
 
 					// Resume doesn't return history, so restore from local storage
@@ -477,7 +482,12 @@ export function useSessionHistory(
 
 				// Update with new session ID and modes/models from result
 				// For fork, the new session ID is returned in result
-				onSessionLoad(result.sessionId, result.modes, result.models);
+				onSessionLoad(
+					result.sessionId,
+					result.modes,
+					result.models,
+					result.configOptions,
+				);
 
 				// Fork doesn't return history, so restore from original session's local storage
 				const localMessages =

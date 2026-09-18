@@ -547,6 +547,7 @@ export function useChat(
 				// Session-level updates are handled elsewhere (useAgentSession)
 				case "available_commands_update":
 				case "current_mode_update":
+				case "config_option_update":
 					// These are intentionally not handled here
 					break;
 			}

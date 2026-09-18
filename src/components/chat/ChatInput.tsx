@@ -1,6 +1,6 @@
 import * as React from "react";
 const { useRef, useState, useEffect, useCallback, useMemo } = React;
-import { setIcon, DropdownComponent, Notice } from "obsidian";
+import { setIcon, Notice } from "obsidian";
 
 import type AgentClientPlugin from "../../plugin";
 import type { ChatView } from "./ChatView";
@@ -9,6 +9,7 @@ import type {
 	SlashCommand,
 	SessionModeState,
 	SessionModelState,
+	SessionConfigOption,
 } from "../../domain/models/chat-session";
 import type { ImagePromptContent } from "../../domain/models/prompt-content";
 import type { QueuedMessage } from "../../hooks/useChat";
@@ -19,6 +20,7 @@ import type { UseSlashCommandsReturn } from "../../hooks/useSlashCommands";
 import type { UseAutoMentionReturn } from "../../hooks/useAutoMention";
 import { SuggestionDropdown } from "./SuggestionDropdown";
 import { ImagePreviewStrip, type AttachedImage } from "./ImagePreviewStrip";
+import { SessionOptionChip } from "./SessionOptionChip";
 import { Logger } from "../../shared/logger";
 import { useSettings } from "../../hooks/useSettings";
 
@@ -96,6 +98,10 @@ export interface ChatInputProps {
 	models?: SessionModelState;
 	/** Callback when model is changed */
 	onModelChange?: (modelId: string) => void;
+	/** Session config options advertised by the agent (effort, fast mode, ...) */
+	configOptions?: SessionConfigOption[];
+	/** Callback when a config option is changed */
+	onConfigOptionChange?: (configId: string, value: string) => void;
 	/** Whether the agent supports image attachments */
 	supportsImages?: boolean;
 	/** Current agent ID (used to clear images on agent switch) */
@@ -137,6 +143,8 @@ export function ChatInput({
 	onModeChange,
 	models,
 	onModelChange,
+	configOptions,
+	onConfigOptionChange,
 	supportsImages = false,
 	agentId,
 }: ChatInputProps) {
@@ -157,10 +165,6 @@ export function ChatInput({
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const dragCounterRef = useRef(0);
 	const sendButtonRef = useRef<HTMLButtonElement>(null);
-	const modeDropdownRef = useRef<HTMLDivElement>(null);
-	const modeDropdownInstance = useRef<DropdownComponent | null>(null);
-	const modelDropdownRef = useRef<HTMLDivElement>(null);
-	const modelDropdownInstance = useRef<DropdownComponent | null>(null);
 
 	// Clear attached images when agent changes
 	useEffect(() => {
@@ -799,127 +803,19 @@ export function ChatInput({
 		}
 	}, [restoredMessage, onRestoredMessageConsumed, inputValue]);
 
-	// Stable references for callbacks
-	const onModeChangeRef = useRef(onModeChange);
-	onModeChangeRef.current = onModeChange;
-
-	// Initialize Mode dropdown (only when availableModes change)
-	const availableModes = modes?.availableModes;
-	const currentModeId = modes?.currentModeId;
-
-	useEffect(() => {
-		const containerEl = modeDropdownRef.current;
-		if (!containerEl) return;
-
-		// Only show dropdown if there are multiple modes
-		if (!availableModes || availableModes.length <= 1) {
-			// Clean up existing dropdown if modes become unavailable
-			if (modeDropdownInstance.current) {
-				containerEl.empty();
-				modeDropdownInstance.current = null;
-			}
-			return;
-		}
-
-		// Create dropdown if not exists
-		if (!modeDropdownInstance.current) {
-			const dropdown = new DropdownComponent(containerEl);
-			modeDropdownInstance.current = dropdown;
-
-			// Add options
-			for (const mode of availableModes) {
-				dropdown.addOption(mode.id, mode.name);
-			}
-
-			// Set initial value
-			if (currentModeId) {
-				dropdown.setValue(currentModeId);
-			}
-
-			// Handle change - use ref to avoid recreating dropdown on callback change
-			dropdown.onChange((value) => {
-				if (onModeChangeRef.current) {
-					onModeChangeRef.current(value);
-				}
-			});
-		}
-
-		// Cleanup on unmount or when availableModes change
-		return () => {
-			if (modeDropdownInstance.current) {
-				containerEl.empty();
-				modeDropdownInstance.current = null;
-			}
-		};
-	}, [availableModes]);
-
-	// Update dropdown value when currentModeId changes (separate effect)
-	useEffect(() => {
-		if (modeDropdownInstance.current && currentModeId) {
-			modeDropdownInstance.current.setValue(currentModeId);
-		}
-	}, [currentModeId]);
-
-	// Stable references for model callbacks
-	const onModelChangeRef = useRef(onModelChange);
-	onModelChangeRef.current = onModelChange;
-
-	// Initialize Model dropdown (only when availableModels change)
-	const availableModels = models?.availableModels;
-	const currentModelId = models?.currentModelId;
-
-	useEffect(() => {
-		const containerEl = modelDropdownRef.current;
-		if (!containerEl) return;
-
-		// Only show dropdown if there are multiple models
-		if (!availableModels || availableModels.length <= 1) {
-			// Clean up existing dropdown if models become unavailable
-			if (modelDropdownInstance.current) {
-				containerEl.empty();
-				modelDropdownInstance.current = null;
-			}
-			return;
-		}
-
-		// Create dropdown if not exists
-		if (!modelDropdownInstance.current) {
-			const dropdown = new DropdownComponent(containerEl);
-			modelDropdownInstance.current = dropdown;
-
-			// Add options
-			for (const model of availableModels) {
-				dropdown.addOption(model.modelId, model.name);
-			}
-
-			// Set initial value
-			if (currentModelId) {
-				dropdown.setValue(currentModelId);
-			}
-
-			// Handle change - use ref to avoid recreating dropdown on callback change
-			dropdown.onChange((value) => {
-				if (onModelChangeRef.current) {
-					onModelChangeRef.current(value);
-				}
-			});
-		}
-
-		// Cleanup on unmount or when availableModels change
-		return () => {
-			if (modelDropdownInstance.current) {
-				containerEl.empty();
-				modelDropdownInstance.current = null;
-			}
-		};
-	}, [availableModels]);
-
-	// Update dropdown value when currentModelId changes (separate effect)
-	useEffect(() => {
-		if (modelDropdownInstance.current && currentModelId) {
-			modelDropdownInstance.current.setValue(currentModelId);
-		}
-	}, [currentModelId]);
+	// Config options rendered as chips. Mode and model have dedicated chips
+	// fed by the session's modes/models state, so skip their config-option
+	// twins; also skip anything with nothing to choose between.
+	const visibleConfigOptions = useMemo(
+		() =>
+			(configOptions ?? []).filter(
+				(option) =>
+					option.category !== "mode" &&
+					option.category !== "model" &&
+					option.options.length > 1,
+			),
+		[configOptions],
+	);
 
 	// Quick prompts that are complete enough to show (name + prompt text)
 	const firableQuickPrompts = settings.quickPrompts.filter(
@@ -1129,47 +1025,47 @@ export function ChatInput({
 					</div>
 				)}
 
-				{/* Input Actions (Mode Selector + Model Selector + Send Button) */}
+				{/* Input Actions (Mode + Model + Config Option chips + Send Button) */}
 				<div className="obsidianaitools-chat-input-actions">
 					{/* Mode Selector */}
 					{modes && modes.availableModes.length > 1 && (
-						<div
-							className="obsidianaitools-mode-selector"
-							title={
-								modes.availableModes.find(
-									(m) => m.id === modes.currentModeId,
-								)?.description ?? "Select mode"
-							}
-						>
-							<div ref={modeDropdownRef} />
-							<span
-								className="obsidianaitools-mode-selector-icon"
-								ref={(el) => {
-									if (el) setIcon(el, "chevron-down");
-								}}
-							/>
-						</div>
+						<SessionOptionChip
+							items={modes.availableModes.map((m) => ({
+								value: m.id,
+								name: m.name,
+								description: m.description,
+							}))}
+							currentValue={modes.currentModeId}
+							onSelect={(modeId) => onModeChange?.(modeId)}
+						/>
 					)}
 
 					{/* Model Selector (experimental) */}
 					{models && models.availableModels.length > 1 && (
-						<div
-							className="obsidianaitools-model-selector"
-							title={
-								models.availableModels.find(
-									(m) => m.modelId === models.currentModelId,
-								)?.description ?? "Select model"
-							}
-						>
-							<div ref={modelDropdownRef} />
-							<span
-								className="obsidianaitools-model-selector-icon"
-								ref={(el) => {
-									if (el) setIcon(el, "chevron-down");
-								}}
-							/>
-						</div>
+						<SessionOptionChip
+							items={models.availableModels.map((m) => ({
+								value: m.modelId,
+								name: m.name,
+								description: m.description,
+							}))}
+							currentValue={models.currentModelId}
+							onSelect={(modelId) => onModelChange?.(modelId)}
+						/>
 					)}
+
+					{/* Config Options (effort, fast mode, ...) */}
+					{visibleConfigOptions.map((option) => (
+						<SessionOptionChip
+							key={option.id}
+							label={option.name}
+							items={option.options}
+							currentValue={option.currentValue}
+							title={option.description}
+							onSelect={(value) =>
+								onConfigOptionChange?.(option.id, value)
+							}
+						/>
+					))}
 
 					{/* Send/Stop Button */}
 					<button

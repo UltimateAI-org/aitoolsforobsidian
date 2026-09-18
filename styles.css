@@ -1024,124 +1024,54 @@ If your plugin does not need CSS, delete this file.
 	padding: 4px 12px 8px 12px;
 }
 
-/* Mode Selector */
-.obsidianaitools-mode-selector {
+/* Session option chips (mode, model, effort, fast mode, ...) */
+.obsidianaitools-option-chip {
 	display: inline-flex;
 	align-items: center;
-	padding: 0 4px;
-	border-radius: 4px;
-	cursor: pointer;
-	transition: background-color 0.1s ease;
+	gap: 3px;
 	height: 20px;
-	max-width: 120px;
-}
-
-.obsidianaitools-mode-selector:hover {
-	background-color: var(--background-modifier-hover);
-}
-
-.obsidianaitools-mode-selector-icon {
-	display: flex;
-	align-items: center;
-	pointer-events: none;
-	color: var(--text-faint);
-	margin-left: 2px;
-	order: 2;
-}
-
-.obsidianaitools-mode-selector-icon svg {
-	width: 12px;
-	height: 12px;
-}
-
-.obsidianaitools-mode-selector select.dropdown {
-	padding: 0 !important;
+	max-width: 160px;
+	padding: 0 4px !important;
 	margin: 0 !important;
 	border: none !important;
-	border-radius: 0 !important;
-	background: none !important;
-	background-color: transparent !important;
-	background-image: none !important;
+	border-radius: 4px;
+	background: transparent !important;
 	box-shadow: none !important;
-	color: var(--text-faint) !important;
-	font-size: 11px !important;
-	cursor: pointer !important;
-	outline: none !important;
-	appearance: none !important;
-	-webkit-appearance: none !important;
-	-moz-appearance: none !important;
-	order: 1;
-	max-width: 100px;
+	color: var(--text-faint);
+	font-size: 11px;
+	line-height: 20px;
+	cursor: pointer;
+	transition: background-color 0.1s ease;
+}
+
+.obsidianaitools-option-chip:hover,
+.obsidianaitools-option-chip:focus-visible {
+	background-color: var(--background-modifier-hover) !important;
+	color: var(--text-muted);
+	box-shadow: none !important;
+}
+
+.obsidianaitools-option-chip-label {
+	flex: none;
+}
+
+.obsidianaitools-option-chip-value {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+	color: var(--text-accent);
 }
 
-.obsidianaitools-mode-selector select.dropdown:hover,
-.obsidianaitools-mode-selector select.dropdown:focus {
-	color: var(--text-faint) !important;
-	background-color: transparent !important;
-	box-shadow: none !important;
-}
-
-/* Model Selector (experimental) */
-.obsidianaitools-model-selector {
-	display: inline-flex;
-	align-items: center;
-	padding: 0 4px;
-	border-radius: 4px;
-	cursor: pointer;
-	transition: background-color 0.1s ease;
-	height: 20px;
-	max-width: 120px;
-}
-
-.obsidianaitools-model-selector:hover {
-	background-color: var(--background-modifier-hover);
-}
-
-.obsidianaitools-model-selector-icon {
+.obsidianaitools-option-chip-icon {
 	display: flex;
 	align-items: center;
+	flex: none;
 	pointer-events: none;
-	color: var(--text-faint);
-	margin-left: 2px;
-	order: 2;
 }
 
-.obsidianaitools-model-selector-icon svg {
+.obsidianaitools-option-chip-icon svg {
 	width: 12px;
 	height: 12px;
-}
-
-.obsidianaitools-model-selector select.dropdown {
-	padding: 0 !important;
-	margin: 0 !important;
-	border: none !important;
-	border-radius: 0 !important;
-	background: none !important;
-	background-color: transparent !important;
-	background-image: none !important;
-	box-shadow: none !important;
-	color: var(--text-faint) !important;
-	font-size: 11px !important;
-	cursor: pointer !important;
-	outline: none !important;
-	appearance: none !important;
-	-webkit-appearance: none !important;
-	-moz-appearance: none !important;
-	order: 1;
-	max-width: 100px;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.obsidianaitools-model-selector select.dropdown:hover,
-.obsidianaitools-model-selector select.dropdown:focus {
-	color: var(--text-faint) !important;
-	background-color: transparent !important;
-	box-shadow: none !important;
 }
 
 /* Send button */

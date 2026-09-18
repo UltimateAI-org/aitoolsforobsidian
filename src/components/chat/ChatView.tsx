@@ -42,6 +42,7 @@ import { useSessionHistory } from "../../hooks/useSessionHistory";
 import type {
 	SessionModeState,
 	SessionModelState,
+	SessionConfigOption,
 } from "../../domain/models/chat-session";
 import type { ImagePromptContent } from "../../domain/models/prompt-content";
 
@@ -190,6 +191,7 @@ function ChatComponent({
 			sessionId: string,
 			modes?: SessionModeState,
 			models?: SessionModelState,
+			configOptions?: SessionConfigOption[],
 		) => {
 			// Log that session was loaded
 			logger.log(
@@ -197,12 +199,18 @@ function ChatComponent({
 				{
 					modes,
 					models,
+					configOptions,
 				},
 			);
 
 			// Update session state with new session ID and modes/models
 			// This is critical for session/update notifications to be accepted
-			agentSession.updateSessionFromLoad(sessionId, modes, models);
+			agentSession.updateSessionFromLoad(
+				sessionId,
+				modes,
+				models,
+				configOptions,
+			);
 
 			// Conversation history for load is received via session/update notifications
 			// but we ignore them and use local history instead (see handleLoadStart/handleLoadEnd)
@@ -698,11 +706,13 @@ function ChatComponent({
 	const handleSessionUpdateRef = useRef(chat.handleSessionUpdate);
 	const updateAvailableCommandsRef = useRef(agentSession.updateAvailableCommands);
 	const updateCurrentModeRef = useRef(agentSession.updateCurrentMode);
+	const updateConfigOptionsRef = useRef(agentSession.updateConfigOptions);
 	sessionIdRef.current = session.sessionId;
 	isLoadingSessionHistoryRef.current = isLoadingSessionHistory;
 	handleSessionUpdateRef.current = chat.handleSessionUpdate;
 	updateAvailableCommandsRef.current = agentSession.updateAvailableCommands;
 	updateCurrentModeRef.current = agentSession.updateCurrentMode;
+	updateConfigOptionsRef.current = agentSession.updateConfigOptions;
 
 	// Reload session when API settings change (apiKey, baseUrl, model).
 	// Debounced: the settings tab saves on every keystroke, and applying a new
@@ -794,6 +804,8 @@ function ChatComponent({
 					updateAvailableCommandsRef.current(update.commands);
 				} else if (update.type === "current_mode_update") {
 					updateCurrentModeRef.current(update.currentModeId);
+				} else if (update.type === "config_option_update") {
+					updateConfigOptionsRef.current(update.configOptions);
 				}
 				// Ignore all message-related updates (history replay)
 				return;
@@ -807,6 +819,8 @@ function ChatComponent({
 				updateAvailableCommandsRef.current(update.commands);
 			} else if (update.type === "current_mode_update") {
 				updateCurrentModeRef.current(update.currentModeId);
+			} else if (update.type === "config_option_update") {
+				updateConfigOptionsRef.current(update.configOptions);
 			}
 		});
 	}, [acpAdapter, logger]);
@@ -1199,6 +1213,10 @@ function ChatComponent({
 				onModeChange={(modeId) => void agentSession.setMode(modeId)}
 				models={session.models}
 				onModelChange={(modelId) => void agentSession.setModel(modelId)}
+				configOptions={session.configOptions}
+				onConfigOptionChange={(configId, value) =>
+					void agentSession.setConfigOption(configId, value)
+				}
 				supportsImages={session.promptCapabilities?.image ?? false}
 				agentId={session.agentId}
 			/>

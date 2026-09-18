@@ -157,6 +157,58 @@ export interface SessionModelState {
 }
 
 // ============================================================================
+// Session Config Options
+// ============================================================================
+
+/**
+ * One selectable value of a session config option.
+ */
+export interface SessionConfigSelectOption {
+	/** Value identifier sent back to the agent when selected */
+	value: string;
+
+	/** Human-readable name for display */
+	name: string;
+
+	/** Optional description of this value */
+	description?: string;
+}
+
+/**
+ * A select-style session configuration option advertised by the agent.
+ *
+ * Config options are the generic ACP mechanism for per-session settings such
+ * as effort level or fast mode. The agent sends the full list in the session
+ * response and again on every `config_option_update` notification; the client
+ * changes one with `session/set_config_option`.
+ *
+ * Only select-type options are modelled here. Boolean options are not
+ * advertised as supported, so the agent degrades them to two-value selects.
+ */
+export interface SessionConfigOption {
+	/** Unique identifier for this option (e.g., "effort") */
+	id: string;
+
+	/** Human-readable label (e.g., "Effort") */
+	name: string;
+
+	/** Optional description for tooltips */
+	description?: string;
+
+	/**
+	 * Optional semantic category (UX only). Known values are "mode", "model"
+	 * and "thought_level"; agents may send others.
+	 */
+	category?: string;
+
+	/** Value identifier of the currently selected option */
+	currentValue: string;
+
+	/** Selectable values, flattened across any groups the agent sent */
+	options: SessionConfigSelectOption[];
+}
+
+// ============================================================================
 // Chat Session
 // ============================================================================
 
@@ -208,6 +260,12 @@ export interface ChatSession {
 	 * Updated via NewSessionResponse initially.
 	 */
 	models?: SessionModelState;
+
+	/**
+	 * Session config options advertised by the agent (effort, fast mode, ...).
+	 * Updated via the session response and `config_option_update` notifications.
+	 */
+	configOptions?: SessionConfigOption[];
 
 	/**
 	 * Prompt capabilities supported by the agent.
