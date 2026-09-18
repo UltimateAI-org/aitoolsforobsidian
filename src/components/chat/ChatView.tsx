@@ -165,7 +165,7 @@ function ChatComponent({
 		},
 	);
 
-	const { messages, isSending, streamingPhase } = chat;
+	const { messages, isSending, streamingPhase, turnStartedAt } = chat;
 
 	// Report busy state to the tab container (busy dot on the tab chip)
 	useEffect(() => {
@@ -1175,6 +1175,7 @@ function ChatComponent({
 				messages={messages}
 				isSending={isSending}
 				streamingPhase={streamingPhase}
+				turnStartedAt={turnStartedAt}
 				isSessionReady={isSessionReady}
 				isRestoringSession={sessionHistory.loading}
 				agentLabel={activeAgentLabel}

@@ -1292,6 +1292,15 @@ If your plugin does not need CSS, delete this file.
 	border-radius: 0;
 }
 
+/* "Completed in 42s" footer under an assistant turn */
+.obsidianaitools-message-turn-stats {
+	margin-top: 2px;
+	font-size: 0.75em;
+	color: var(--text-faint);
+	font-variant-numeric: tabular-nums;
+	user-select: none;
+}
+
 /* Text with Mentions */
 .obsidianaitools-text-with-mentions {
 	user-select: text;

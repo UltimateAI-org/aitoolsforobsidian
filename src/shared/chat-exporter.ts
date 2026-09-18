@@ -4,6 +4,7 @@ import type {
 	MessageContent,
 } from "../domain/models/chat-message";
 import { Logger } from "./logger";
+import { describeTurn } from "./format-duration";
 import { TFile } from "obsidian";
 
 /**
@@ -174,6 +175,10 @@ tags: [obsidianaitools]
 					content,
 					context,
 				);
+			}
+
+			if (message.role === "assistant" && message.turn) {
+				markdown += `*${describeTurn(message.turn)}*\n\n`;
 			}
 
 			markdown += "\n---\n\n";

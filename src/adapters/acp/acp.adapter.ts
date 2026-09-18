@@ -9,6 +9,7 @@ import type {
 	AgentConfig,
 	InitializeResult,
 	NewSessionResult,
+	PromptResult,
 } from "../../domain/ports/agent-client.port";
 import type {
 	MessageContent,
@@ -923,7 +924,7 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 	async sendPrompt(
 		sessionId: string,
 		content: PromptContent[],
-	): Promise<void> {
+	): Promise<PromptResult> {
 		if (!this.connection) {
 			throw new Error(
 				"Connection not initialized. Call initialize() first.",
@@ -951,6 +952,11 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 			this.logger.log(
 				`[AcpAdapter] Agent completed with: ${promptResult.stopReason}`,
 			);
+			return {
+				stopReason: AcpTypeConverter.toStopReason(
+					promptResult.stopReason,
+				),
+			};
 		} catch (error: unknown) {
 			this.logger.error("[AcpAdapter] Prompt Error:", error);
 
@@ -997,14 +1003,14 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 						this.logger.log(
 							"[AcpAdapter] Empty response text error - ignoring",
 						);
-						return;
+						return {};
 					}
 					// Ignore "user aborted" errors (from cancel operation)
 					if (errorData.details.includes("user aborted")) {
 						this.logger.log(
 							"[AcpAdapter] User aborted request - ignoring",
 						);
-						return;
+						return { stopReason: "cancelled" };
 					}
 				}
 			}
