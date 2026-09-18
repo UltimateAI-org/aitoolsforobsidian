@@ -19,6 +19,7 @@ import type {
 	EditorPosition,
 } from "../domain/ports/vault-access.port";
 import type { AgentError } from "../domain/models/agent-error";
+import type { PromptStopReason } from "../domain/models/chat-message";
 import type { AuthenticationMethod } from "../domain/models/chat-session";
 import type {
 	PromptContent,
@@ -124,6 +125,9 @@ export interface SendPromptResult {
 
 	/** Whether the prompt was successfully sent after retry */
 	retriedSuccessfully?: boolean;
+
+	/** How the agent reported the turn ending (only on success) */
+	stopReason?: PromptStopReason;
 }
 
 // ============================================================================
@@ -554,12 +558,16 @@ export async function sendPreparedPrompt(
 	agentClient: IAgentClient,
 ): Promise<SendPromptResult> {
 	try {
-		await agentClient.sendPrompt(input.sessionId, input.agentContent);
+		const result = await agentClient.sendPrompt(
+			input.sessionId,
+			input.agentContent,
+		);
 
 		return {
 			success: true,
 			displayContent: input.displayContent,
 			agentContent: input.agentContent,
+			stopReason: result.stopReason,
 		};
 	} catch (error) {
 		return await handleSendError(
@@ -592,11 +600,12 @@ async function handleSendError(
 	if (isEmptyResponseError(error)) {
 		console.warn("[AgentClient] Empty response from agent, retrying...");
 		try {
-			await agentClient.sendPrompt(sessionId, agentContent);
+			const result = await agentClient.sendPrompt(sessionId, agentContent);
 			return {
 				success: true,
 				displayContent,
 				agentContent,
+				stopReason: result.stopReason,
 			};
 		} catch (retryError) {
 			// If retry also returns empty response, show user-friendly error
@@ -867,13 +876,14 @@ async function retryWithAuthentication(
 			return null;
 		}
 
-		await agentClient.sendPrompt(sessionId, agentContent);
+		const result = await agentClient.sendPrompt(sessionId, agentContent);
 
 		return {
 			success: true,
 			displayContent,
 			agentContent,
 			retriedSuccessfully: true,
+			stopReason: result.stopReason,
 		};
 	} catch (retryError) {
 		return {

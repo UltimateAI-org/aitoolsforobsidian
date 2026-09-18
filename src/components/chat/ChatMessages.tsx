@@ -7,6 +7,7 @@ import type { IAcpClient } from "../../adapters/acp/acp.adapter";
 import type AgentClientPlugin from "../../plugin";
 import type { ChatView } from "./ChatView";
 import { MessageRenderer } from "./MessageRenderer";
+import { formatDuration } from "../../shared/format-duration";
 
 /**
  * Error information to display
@@ -29,6 +30,8 @@ export interface ChatMessagesProps {
 	isSending: boolean;
 	/** Current streaming phase (idle, waiting, thinking, responding) */
 	streamingPhase: StreamingPhase;
+	/** When the in-flight turn started (epoch ms), or null when idle */
+	turnStartedAt: number | null;
 	/** Whether the session is ready for user input */
 	isSessionReady: boolean;
 	/** Whether a session is being restored (load/resume/fork) */
@@ -68,23 +71,27 @@ const PHASE_LABELS: Record<StreamingPhase, string> = {
 	awaiting_approval: "Waiting for approval...",
 };
 
-function LoadingIndicator({ streamingPhase }: { streamingPhase: StreamingPhase }) {
-	const [elapsed, setElapsed] = useState(0);
-	const phaseRef = useRef(streamingPhase);
+function LoadingIndicator({
+	streamingPhase,
+	turnStartedAt,
+}: {
+	streamingPhase: StreamingPhase;
+	turnStartedAt: number | null;
+}) {
+	// Seconds since the prompt went out. Counts across phase changes so it
+	// matches the "Completed in" figure stamped on the message afterwards.
+	const elapsedSince = (start: number | null) =>
+		start === null ? 0 : Math.floor((Date.now() - start) / 1000);
+	const [elapsed, setElapsed] = useState(() => elapsedSince(turnStartedAt));
 
-	// Reset timer when phase changes
 	useEffect(() => {
-		if (phaseRef.current !== streamingPhase) {
-			phaseRef.current = streamingPhase;
-			setElapsed(0);
-		}
-	}, [streamingPhase]);
-
-	// Tick every second
-	useEffect(() => {
-		const interval = setInterval(() => setElapsed((e) => e + 1), 1000);
+		setElapsed(elapsedSince(turnStartedAt));
+		const interval = setInterval(
+			() => setElapsed(elapsedSince(turnStartedAt)),
+			1000,
+		);
 		return () => clearInterval(interval);
-	}, [streamingPhase]);
+	}, [turnStartedAt]);
 
 	const label = PHASE_LABELS[streamingPhase];
 	const showTimer = elapsed >= 3 && streamingPhase !== "idle";
@@ -106,7 +113,10 @@ function LoadingIndicator({ streamingPhase }: { streamingPhase: StreamingPhase }
 				<span className="obsidianaitools-loading-label">
 					{label}
 					{showTimer && (
-						<span className="obsidianaitools-loading-timer"> {elapsed}s</span>
+						<span className="obsidianaitools-loading-timer">
+							{" "}
+							{formatDuration(elapsed * 1000)}
+						</span>
 					)}
 				</span>
 			)}
@@ -128,6 +138,7 @@ export function ChatMessages({
 	messages,
 	isSending,
 	streamingPhase,
+	turnStartedAt,
 	isSessionReady,
 	isRestoringSession,
 	agentLabel,
@@ -304,7 +315,10 @@ export function ChatMessages({
 						/>
 					))}
 					{isSending && (
-						<LoadingIndicator streamingPhase={streamingPhase} />
+						<LoadingIndicator
+							streamingPhase={streamingPhase}
+							turnStartedAt={turnStartedAt}
+						/>
 					)}
 				</>
 			)}

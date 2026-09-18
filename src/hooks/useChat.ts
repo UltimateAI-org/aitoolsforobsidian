@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useRef } from "react";
 import type {
 	ChatMessage,
 	MessageContent,
+	TurnStats,
 } from "../domain/models/chat-message";
 import type { SessionUpdate } from "../domain/models/session-update";
 import type { IAgentClient } from "../domain/ports/agent-client.port";
@@ -65,6 +66,8 @@ export interface UseChatReturn {
 	isSending: boolean;
 	/** Current streaming phase (idle, waiting, thinking, responding) */
 	streamingPhase: StreamingPhase;
+	/** When the in-flight turn started (epoch ms), or null when idle */
+	turnStartedAt: number | null;
 	/** Last user message (can be restored after cancel) */
 	lastUserMessage: string | null;
 	/** Error information from message operations */
@@ -262,6 +265,7 @@ export function useChat(
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [isSending, setIsSending] = useState(false);
 	const [streamingPhase, setStreamingPhase] = useState<StreamingPhase>("idle");
+	const [turnStartedAt, setTurnStartedAt] = useState<number | null>(null);
 	const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
 	const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null);
 
@@ -286,6 +290,19 @@ export function useChat(
 	 */
 	const addMessage = useCallback((message: ChatMessage): void => {
 		setMessages((prev) => [...prev, message]);
+	}, []);
+
+	/**
+	 * Stamp turn timing on the assistant message that closed the turn.
+	 * No-op if the agent produced no message (last message is the user's),
+	 * e.g. a turn that errored before any output.
+	 */
+	const stampTurn = useCallback((turn: TurnStats): void => {
+		setMessages((prev) => {
+			const last = prev[prev.length - 1];
+			if (!last || last.role !== "assistant") return prev;
+			return [...prev.slice(0, -1), { ...last, turn }];
+		});
 	}, []);
 
 	/**
@@ -563,6 +580,7 @@ export function useChat(
 		setLastUserMessage(null);
 		setIsSending(false);
 		setStreamingPhase("idle");
+		setTurnStartedAt(null);
 		setErrorInfo(null);
 		queuedRef.current = [];
 		setQueuedMessages([]);
@@ -748,8 +766,10 @@ export function useChat(
 			addMessage(userMessage);
 
 			// Phase 3: Set sending state and store original message
+			const startedAt = Date.now();
 			setIsSending(true);
 			setStreamingPhase("waiting");
+			setTurnStartedAt(startedAt);
 			setLastUserMessage(content);
 
 			// Phase 4: Send prepared prompt to agent using message-service
@@ -766,15 +786,24 @@ export function useChat(
 			try {
 				const result = await sendOp;
 
+				// The prompt call resolving is the turn boundary: record how
+				// long the whole turn took on the message it produced.
+				stampTurn({
+					durationMs: Date.now() - startedAt,
+					stopReason: result.stopReason,
+				});
+
 				if (result.success) {
 					// Success - clear stored message
 					setIsSending(false);
 					setStreamingPhase("idle");
+					setTurnStartedAt(null);
 					setLastUserMessage(null);
 				} else {
 					// Error from message-service
 					setIsSending(false);
 					setStreamingPhase("idle");
+					setTurnStartedAt(null);
 					setErrorInfo(
 						result.error
 							? {
@@ -790,8 +819,10 @@ export function useChat(
 				}
 			} catch (error) {
 				// Unexpected error
+				stampTurn({ durationMs: Date.now() - startedAt });
 				setIsSending(false);
 				setStreamingPhase("idle");
+				setTurnStartedAt(null);
 				setErrorInfo({
 					title: "Send Message Failed",
 					message: `Failed to send message: ${error instanceof Error ? error.message : String(error)}`,
@@ -826,6 +857,7 @@ export function useChat(
 			sessionContext.promptCapabilities,
 			shouldConvertToWsl,
 			addMessage,
+			stampTurn,
 		],
 	);
 
@@ -836,6 +868,7 @@ export function useChat(
 		messages,
 		isSending,
 		streamingPhase,
+		turnStartedAt,
 		lastUserMessage,
 		errorInfo,
 		queuedMessages,

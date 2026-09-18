@@ -1,5 +1,8 @@
 import * as acp from "@agentclientprotocol/sdk";
-import type { ToolCallContent } from "../../domain/models/chat-message";
+import type {
+	PromptStopReason,
+	ToolCallContent,
+} from "../../domain/models/chat-message";
 import type { PromptContent } from "../../domain/models/prompt-content";
 import type {
 	SessionConfigOption,
@@ -13,6 +16,28 @@ import type {
  * When the ACP protocol changes, only this converter needs to be updated.
  */
 export class AcpTypeConverter {
+	/**
+	 * Convert an ACP StopReason to the domain PromptStopReason.
+	 *
+	 * The two enums currently match value for value; unknown strings from a
+	 * newer protocol version fall back to undefined rather than being passed
+	 * through as a bogus reason.
+	 */
+	static toStopReason(
+		acpStopReason: string | undefined | null,
+	): PromptStopReason | undefined {
+		switch (acpStopReason) {
+			case "end_turn":
+			case "max_tokens":
+			case "max_turn_requests":
+			case "refusal":
+			case "cancelled":
+				return acpStopReason;
+			default:
+				return undefined;
+		}
+	}
+
 	/**
 	 * Convert ACP ToolCallContent to domain ToolCallContent.
 	 *

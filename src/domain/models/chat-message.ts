@@ -111,6 +111,32 @@ export interface ToolCallInfo {
 	rawOutput?: { [k: string]: unknown }; // Tool's output data
 }
 
+/**
+ * Why an agent turn ended.
+ * - end_turn: The agent finished its response
+ * - max_tokens: Output limit reached
+ * - max_turn_requests: Tool-call / request limit reached
+ * - refusal: The agent declined to continue
+ * - cancelled: The user stopped the turn
+ */
+export type PromptStopReason =
+	| "end_turn"
+	| "max_tokens"
+	| "max_turn_requests"
+	| "refusal"
+	| "cancelled";
+
+/**
+ * Timing for the agent turn that produced a message.
+ * Measured from the prompt being sent to the agent reporting the turn done.
+ */
+export interface TurnStats {
+	/** Wall-clock duration of the whole turn in milliseconds */
+	durationMs: number;
+	/** How the turn ended, when the agent reported it */
+	stopReason?: PromptStopReason;
+}
+
 // ============================================================================
 // Chat Message
 // ============================================================================
@@ -126,6 +152,8 @@ export interface ChatMessage {
 	role: Role;
 	content: MessageContent[];
 	timestamp: Date;
+	/** Set on the assistant message that closed a turn */
+	turn?: TurnStats;
 }
 
 /**

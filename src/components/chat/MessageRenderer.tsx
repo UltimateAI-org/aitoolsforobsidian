@@ -6,6 +6,7 @@ import type {
 import type { IAcpClient } from "../../adapters/acp/acp.adapter";
 import type AgentClientPlugin from "../../plugin";
 import { MessageContentRenderer } from "./MessageContentRenderer";
+import { describeTurn } from "../../shared/format-duration";
 
 interface MessageRendererProps {
 	message: ChatMessage;
@@ -110,6 +111,11 @@ export function MessageRenderer({
 					);
 				}
 			})}
+			{message.role === "assistant" && message.turn && (
+				<div className="obsidianaitools-message-turn-stats">
+					{describeTurn(message.turn)}
+				</div>
+			)}
 		</div>
 	);
 }

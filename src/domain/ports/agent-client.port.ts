@@ -11,7 +11,10 @@
  * adapter layer, keeping the domain logic stable.
  */
 
-import type { PermissionOption } from "../models/chat-message";
+import type {
+	PermissionOption,
+	PromptStopReason,
+} from "../models/chat-message";
 import type {
 	AuthenticationMethod,
 	SessionModeState,
@@ -198,6 +201,17 @@ export interface InitializeResult {
 /**
  * Result of creating a new session.
  */
+/**
+ * Result of a completed prompt turn.
+ */
+export interface PromptResult {
+	/**
+	 * How the turn ended. Undefined when the adapter swallowed a benign
+	 * error (empty response, user abort) and has no agent-reported reason.
+	 */
+	stopReason?: PromptStopReason;
+}
+
 export interface NewSessionResult {
 	/** Unique identifier for the new session */
 	sessionId: string;
@@ -270,10 +284,14 @@ export interface IAgentClient {
 	 *
 	 * @param sessionId - Session identifier
 	 * @param content - Array of content blocks to send (text and/or images)
-	 * @returns Promise resolving when agent completes processing
+	 * @returns Promise resolving when agent completes processing, with how
+	 *   the turn ended if the agent reported it
 	 * @throws AgentError if sending fails
 	 */
-	sendPrompt(sessionId: string, content: PromptContent[]): Promise<void>;
+	sendPrompt(
+		sessionId: string,
+		content: PromptContent[],
+	): Promise<PromptResult>;
 
 	/**
 	 * Cancel ongoing agent operations.
