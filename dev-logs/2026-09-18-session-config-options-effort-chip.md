@@ -1,6 +1,6 @@
 # Dev Log — 2026-09-18 — Session config options (effort level chip)
 
-## Version: 1.0.2 (patch, after 1.0.1 ships)
+## Version: 1.0.2 (patch, on top of v1.0.1)
 
 ---
 
@@ -158,6 +158,20 @@ There is no longer a "let Claude Code decide" choice in the chip.
 `AGENT_MAX_TESTED_VERSIONS["claude-code-acp"]`: `0.76.0` → `0.79.0`.
 The feature was built and verified by Paul against claude-agent-acp
 0.79.0 on 2026-09-18, which covers 0.77.x–0.79.0.
+
+### Rebased on v1.0.1
+
+v1.0.1 shipped upstream on 2026-09-12 while this branch was in
+progress. Fork `master` was fast-forwarded to `upstream/master`
+(tag `v1.0.1`) and merged into this branch (`ed5aeaf`). The only shared
+file, `acp.adapter.ts`, auto-merged cleanly: the stderr ring buffer from
+1.0.1 and the `_meta.jetbrains.air` capability from this branch touch
+different parts of `initialize()`.
+
+Consequence: the red `[AcpAdapter] ... stderr:` console lines that
+appeared during testing (the agent's `[session/create] phase=...`
+timings) are gone in this build, because stderr is now debug-gated and
+only persisted on process failure.
 
 ### Not done here
 
