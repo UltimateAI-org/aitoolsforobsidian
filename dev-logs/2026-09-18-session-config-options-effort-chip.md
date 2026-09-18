@@ -1,6 +1,6 @@
 # Dev Log — 2026-09-18 — Session config options (effort level chip)
 
-## Version: 1.0.1 → next minor
+## Version: 1.0.2 (patch, after 1.0.1 ships)
 
 ---
 
