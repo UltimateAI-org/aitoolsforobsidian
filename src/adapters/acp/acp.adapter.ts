@@ -83,6 +83,11 @@ export interface IAcpClient extends acp.Client {
  * - Handles message updates and terminal operations
  * - Provides callbacks for UI updates
  */
+
+/** How many recent stderr chunks to hold for crash diagnostics. Enough to
+ *  cover the run-up to a failure without the buffer itself growing large. */
+const MAX_BUFFERED_STDERR_CHUNKS = 200;
+
 export class AcpAdapter implements IAgentClient, IAcpClient {
 	private connection: acp.ClientSideConnection | null = null;
 	private agentProcess: ChildProcess | null = null;
@@ -105,6 +110,17 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 	private currentConfig: AgentConfig | null = null;
 	private isInitializedFlag = false;
 	private currentAgentId: string | null = null;
+
+	// Recent agent stderr, kept in memory only. Agents use stderr for routine
+	// telemetry (session ids, phase timings), so persisting every line filled
+	// error.log with noise and — because that file rotates at 512 KB — evicted
+	// the real failures it exists to preserve. The buffer is written to
+	// error.log only when it becomes evidence: an abnormal process exit, or as
+	// context attached to another logged error.
+	private stderrBuffer: string[] = [];
+	/** Set while disconnect() is killing the process, so the resulting
+	 *  non-zero exit is not reported as a crash. */
+	private intentionalShutdown = false;
 
 	// IAcpClient implementation properties
 	private terminalManager: TerminalManager;
@@ -383,6 +399,11 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 		});
 		this.agentProcess = agentProcess;
 
+		// Fresh process: previous run's stderr is no longer relevant, and a
+		// crash from here on is genuinely a crash even if we killed the last one
+		this.stderrBuffer = [];
+		this.intentionalShutdown = false;
+
 		const agentLabel = `${config.displayName} (${config.id})`;
 
 		// Set up process event handlers
@@ -450,6 +471,8 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 			}
 		});
 
+		const currentAgentId = config.id;
+
 		agentProcess.on("close", (code, signal) => {
 			this.logger.log(
 				`[AcpAdapter] ${agentLabel} process closed with code:`,
@@ -457,19 +480,37 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 				"signal:",
 				signal,
 			);
+
+			// An exit we didn't ask for is the one moment buffered stderr is
+			// worth keeping: it holds whatever the agent said on its way out.
+			const crashed = !this.intentionalShutdown && code !== 0;
+			if (crashed) {
+				this.flushStderrBuffer(
+					`${agentLabel} process exited unexpectedly (code: ${code}, signal: ${signal})`,
+					currentAgentId,
+				);
+			} else {
+				this.stderrBuffer = [];
+			}
 		});
 
 		agentProcess.stderr?.setEncoding("utf8");
-		const currentAgentId = config.id;
 		agentProcess.stderr?.on("data", (data) => {
-			// Always log stderr so users can diagnose agent crashes without
-			// having to enable debug mode first.
-			console.error(`[AcpAdapter] ${agentLabel} stderr:`, data);
-			void this.plugin.errorLog?.logError({
-				source: "acp-stderr",
-				agentId: currentAgentId,
-				message: typeof data === "string" ? data : String(data),
-			});
+			const text = typeof data === "string" ? data : String(data);
+
+			// Debug-gated: agents write routine telemetry here, so this is not
+			// error output and shouldn't be red in every user's console.
+			this.logger.log(`[AcpAdapter] ${agentLabel} stderr:`, text);
+
+			// Held in memory; persisted only if it becomes evidence. See the
+			// stderrBuffer field for why this isn't written straight to disk.
+			this.stderrBuffer.push(text);
+			if (this.stderrBuffer.length > MAX_BUFFERED_STDERR_CHUNKS) {
+				this.stderrBuffer.splice(
+					0,
+					this.stderrBuffer.length - MAX_BUFFERED_STDERR_CHUNKS,
+				);
+			}
 		});
 
 		// Create stream for ACP communication
@@ -913,6 +954,13 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 		} catch (error: unknown) {
 			this.logger.error("[AcpAdapter] Prompt Error:", error);
 
+			// Covers the case the close handler can't: the agent misbehaves
+			// but keeps running, so its stderr would otherwise never be kept.
+			this.flushStderrBuffer(
+				"Agent stderr preceding a prompt error",
+				this.currentAgentId ?? undefined,
+			);
+
 			const described = describeError(error);
 			void this.plugin.errorLog?.logError({
 				source: "acp-prompt-error",
@@ -1001,10 +1049,37 @@ export class AcpAdapter implements IAgentClient, IAcpClient {
 	}
 
 	/**
+	 * Write buffered agent stderr to the error log and clear it.
+	 *
+	 * Called when the buffer becomes evidence — an unexpected process exit, or
+	 * alongside another logged error — so routine telemetry never reaches disk
+	 * during healthy runs. No-op when nothing has been buffered.
+	 *
+	 * @param reason - Why the buffer is being kept, recorded as the title
+	 * @param agentId - Agent the output came from
+	 */
+	private flushStderrBuffer(reason: string, agentId?: string): void {
+		if (this.stderrBuffer.length === 0) return;
+
+		const output = this.stderrBuffer.join("");
+		this.stderrBuffer = [];
+
+		void this.plugin.errorLog?.logError({
+			source: "acp-stderr",
+			agentId: agentId ?? this.currentAgentId ?? undefined,
+			title: reason,
+			message: output,
+		});
+	}
+
+	/**
 	 * Disconnect from the agent and clean up resources.
 	 */
 	disconnect(): Promise<void> {
 		this.logger.log("[AcpAdapter] Disconnecting...");
+
+		// Mark the shutdown as ours so the process exit isn't logged as a crash
+		this.intentionalShutdown = true;
 
 		// Cancel all pending operations
 		this.cancelAllOperations();
