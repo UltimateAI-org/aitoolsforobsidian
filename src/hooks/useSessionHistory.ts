@@ -55,6 +55,18 @@ export interface MessagesRestoreCallback {
 }
 
 /**
+ * Outcome of a bulk delete.
+ */
+export interface DeleteAllSessionsResult {
+	/** Sessions removed from the agent (when supported) and local storage */
+	deleted: number;
+	/** Sessions the agent refused to delete, so they stay in the list */
+	failed: number;
+	/** Sessions left alone because they are open in a chat tab */
+	skipped: number;
+}
+
+/**
  * Options for useSessionHistory hook.
  */
 export interface UseSessionHistoryOptions {
@@ -74,6 +86,12 @@ export interface UseSessionHistoryOptions {
 	onLoadStart?: () => void;
 	/** Callback invoked when session/load ends (to stop ignoring history replay) */
 	onLoadEnd?: () => void;
+	/**
+	 * Whether a session is currently open in a chat tab.
+	 * Live sessions are never deleted agent-side, because the agent tears down
+	 * the running session and the open chat would stop working.
+	 */
+	isSessionLive?: (sessionId: string) => boolean;
 }
 
 /**
@@ -136,6 +154,21 @@ export interface UseSessionHistoryReturn {
 	 * @param sessionId - Session to delete
 	 */
 	deleteSession: (sessionId: string) => Promise<void>;
+
+	/**
+	 * Delete every session currently listed.
+	 * Respects the active filter: only the sessions shown are removed.
+	 * Sessions open in a chat tab are skipped.
+	 * @returns Counts of deleted, failed and skipped sessions
+	 */
+	deleteAllSessions: () => Promise<DeleteAllSessionsResult>;
+
+	/**
+	 * Whether the agent deletes its own copy of a session.
+	 * When false, deletion is plugin-side only and sessions listed by the
+	 * agent come back on the next fetch.
+	 */
+	canDeleteOnAgent: boolean;
 
 	/**
 	 * Save session metadata locally.
@@ -211,6 +244,7 @@ export function useSessionHistory(
 		onMessagesRestore,
 		onLoadStart,
 		onLoadEnd,
+		isSessionLive,
 	} = options;
 
 	// Derive capability flags from session.agentCapabilities
@@ -557,11 +591,44 @@ export function useSessionHistory(
 	);
 
 	/**
-	 * Delete a session (local metadata + message file).
-	 * Removes from both local state and persistent storage.
+	 * Whether the agent can delete its own copy of a session.
+	 * Without this the list is rebuilt from the agent on the next fetch and
+	 * deleted rows reappear.
+	 */
+	const canDeleteOnAgent = capabilities.canDelete;
+
+	/**
+	 * Whether a session is open in a chat tab right now.
+	 * Live sessions are never deleted agent-side: the agent tears down the
+	 * running session, which would break the open chat.
+	 */
+	const isLive = useCallback(
+		(sessionId: string) => isSessionLive?.(sessionId) ?? false,
+		[isSessionLive],
+	);
+
+	/**
+	 * Delete a session (agent side when supported, plus local metadata and
+	 * message file). Removes it from local state.
 	 */
 	const deleteSession = useCallback(
 		async (sessionId: string) => {
+			// Delete the agent's own copy first, so the session stops coming
+			// back from session/list. Skipped for a session that is open in a
+			// tab, whose agent-side state is still in use. A refusal here does
+			// not block the local delete; it is surfaced as an error instead.
+			if (canDeleteOnAgent && !isLive(sessionId)) {
+				try {
+					await agentClient.deleteSession(sessionId);
+				} catch (err) {
+					const errorMessage =
+						err instanceof Error ? err.message : String(err);
+					setError(
+						`The agent kept its copy of this session: ${errorMessage}`,
+					);
+				}
+			}
+
 			try {
 				// Delete from persistent storage (metadata + message file)
 				await settingsAccess.deleteSession(sessionId);
@@ -580,8 +647,94 @@ export function useSessionHistory(
 				throw err; // Re-throw to allow caller to handle
 			}
 		},
-		[settingsAccess, invalidateCache],
+		[
+			agentClient,
+			canDeleteOnAgent,
+			isLive,
+			settingsAccess,
+			invalidateCache,
+		],
 	);
+
+	/**
+	 * Delete every session currently listed.
+	 *
+	 * Only the sessions visible in the list are removed, so the current
+	 * filter (e.g. "current vault only") is respected. Sessions open in a chat
+	 * tab are skipped so those chats keep working. The agent's copy is deleted
+	 * first (when supported), then metadata is cleared in a single settings
+	 * write and the message files are removed.
+	 */
+	const deleteAllSessions =
+		useCallback(async (): Promise<DeleteAllSessionsResult> => {
+			const listed = sessions.map((s) => s.sessionId);
+			const skipped = listed.filter((id) => isLive(id));
+			const targets = listed.filter((id) => !isLive(id));
+
+			if (targets.length === 0) {
+				return { deleted: 0, failed: 0, skipped: skipped.length };
+			}
+
+			// One agent call per session, so a long list takes a moment.
+			// Marking the list busy also disables the button against a
+			// second click while this runs.
+			setLoading(true);
+
+			// Delete each agent-side copy. One failure must not abort the
+			// rest, so failures are collected and reported afterwards.
+			const failedIds = new Set<string>();
+			if (canDeleteOnAgent) {
+				for (const sessionId of targets) {
+					try {
+						await agentClient.deleteSession(sessionId);
+					} catch {
+						failedIds.add(sessionId);
+					}
+				}
+			}
+
+			try {
+				// The plugin's own copy goes regardless: the user asked for it
+				// gone from here. A session the agent kept simply reappears on
+				// the next fetch, and the count below says so.
+				await settingsAccess.deleteSessions(targets);
+
+				// Remove from local state
+				const deleted = new Set(targets);
+				setSessions((prev) =>
+					prev.filter((s) => !deleted.has(s.sessionId)),
+				);
+
+				// Invalidate cache to ensure consistency
+				invalidateCache();
+			} catch (err) {
+				const errorMessage =
+					err instanceof Error ? err.message : String(err);
+				setError(`Failed to delete sessions: ${errorMessage}`);
+				throw err; // Re-throw to allow caller to handle
+			} finally {
+				setLoading(false);
+			}
+
+			if (failedIds.size > 0) {
+				setError(
+					`The agent refused to delete ${failedIds.size} of ${targets.length} sessions`,
+				);
+			}
+
+			return {
+				deleted: targets.length - failedIds.size,
+				failed: failedIds.size,
+				skipped: skipped.length,
+			};
+		}, [
+			sessions,
+			agentClient,
+			canDeleteOnAgent,
+			isLive,
+			settingsAccess,
+			invalidateCache,
+		]);
 
 	/**
 	 * Save session metadata locally.
@@ -646,6 +799,7 @@ export function useSessionHistory(
 		canRestore: capabilities.canLoad || capabilities.canResume,
 		canFork: capabilities.canFork,
 		canList: capabilities.canList,
+		canDeleteOnAgent,
 		isUsingLocalSessions: !capabilities.canList,
 
 		// Methods
@@ -654,6 +808,7 @@ export function useSessionHistory(
 		restoreSession,
 		forkSession,
 		deleteSession,
+		deleteAllSessions,
 		saveSessionLocally,
 		saveSessionMessages,
 		invalidateCache,

@@ -238,6 +238,17 @@ function ChatComponent({
 		setIsLoadingSessionHistory(false);
 	}, [logger]);
 
+	// Report this tab's open session to the plugin, so deleting sessions never
+	// tears down one that another tab is using
+	useEffect(() => {
+		plugin.setLiveSessionId(acpAdapter, session.sessionId ?? null);
+	}, [plugin, acpAdapter, session.sessionId]);
+
+	const isSessionLive = useCallback(
+		(sessionId: string) => plugin.getLiveSessionIds().has(sessionId),
+		[plugin],
+	);
+
 	const sessionHistory = useSessionHistory({
 		agentClient: acpAdapter,
 		session,
@@ -247,6 +258,7 @@ function ChatComponent({
 		onMessagesRestore: chat.setMessagesFromLocal,
 		onLoadStart: handleLoadStart,
 		onLoadEnd: handleLoadEnd,
+		isSessionLive,
 	});
 
 	// Combined error info (session errors take precedence)
@@ -444,7 +456,11 @@ function ChatComponent({
 
 			const confirmModal = new ConfirmDeleteModal(
 				plugin.app,
-				sessionTitle,
+				ConfirmDeleteModal.forSession(
+					sessionTitle,
+					sessionHistory.canDeleteOnAgent &&
+						!isSessionLive(sessionId),
+				),
 				async () => {
 					try {
 						logger.log(`[ChatView] Deleting session: ${sessionId}`);
@@ -458,8 +474,48 @@ function ChatComponent({
 			);
 			confirmModal.open();
 		},
-		[plugin.app, sessionHistory, logger],
+		[plugin.app, sessionHistory, isSessionLive, logger],
 	);
+
+	const handleHistoryDeleteAllSessions = useCallback(() => {
+		const listed = sessionHistory.sessions.map((s) => s.sessionId);
+		const deletable = listed.filter((id) => !isSessionLive(id));
+		const openCount = listed.length - deletable.length;
+
+		if (deletable.length === 0) {
+			new Notice(
+				"[AI Tools] Only sessions that are open right now are listed",
+			);
+			return;
+		}
+
+		const confirmModal = new ConfirmDeleteModal(
+			plugin.app,
+			ConfirmDeleteModal.forAllSessions(
+				deletable.length,
+				openCount,
+				sessionHistory.canDeleteOnAgent,
+			),
+			async () => {
+				try {
+					logger.log(
+						`[ChatView] Deleting ${deletable.length} sessions`,
+					);
+					const result = await sessionHistory.deleteAllSessions();
+					const plural = result.deleted === 1 ? "" : "s";
+					new Notice(
+						result.failed > 0
+							? `[AI Tools] Deleted ${result.deleted} session${plural}, ${result.failed} could not be deleted`
+							: `[AI Tools] Deleted ${result.deleted} session${plural}`,
+					);
+				} catch (error) {
+					new Notice("[AI Tools] Failed to delete sessions");
+					logger.error("Session delete all error:", error);
+				}
+			},
+		);
+		confirmModal.open();
+	}, [plugin.app, sessionHistory, isSessionLive, logger]);
 
 	const handleHistoryLoadMore = useCallback(() => {
 		void sessionHistory.loadMoreSessions();
@@ -490,6 +546,7 @@ function ChatComponent({
 				onRestoreSession: handleHistoryRestoreSession,
 				onForkSession: handleHistoryForkSession,
 				onDeleteSession: handleHistoryDeleteSession,
+				onDeleteAllSessions: handleHistoryDeleteAllSessions,
 				onLoadMore: handleHistoryLoadMore,
 				onFetchSessions: handleHistoryFetchSessions,
 			});
@@ -505,6 +562,7 @@ function ChatComponent({
 		handleHistoryRestoreSession,
 		handleHistoryForkSession,
 		handleHistoryDeleteSession,
+		handleHistoryDeleteAllSessions,
 		handleHistoryLoadMore,
 		handleHistoryFetchSessions,
 	]);
@@ -527,6 +585,7 @@ function ChatComponent({
 				onRestoreSession: handleHistoryRestoreSession,
 				onForkSession: handleHistoryForkSession,
 				onDeleteSession: handleHistoryDeleteSession,
+				onDeleteAllSessions: handleHistoryDeleteAllSessions,
 				onLoadMore: handleHistoryLoadMore,
 				onFetchSessions: handleHistoryFetchSessions,
 			});
@@ -546,6 +605,7 @@ function ChatComponent({
 		handleHistoryRestoreSession,
 		handleHistoryForkSession,
 		handleHistoryDeleteSession,
+		handleHistoryDeleteAllSessions,
 		handleHistoryLoadMore,
 		handleHistoryFetchSessions,
 	]);
@@ -683,12 +743,18 @@ function ChatComponent({
 	// Skip during onboarding — the modal will trigger activateView() after saving settings
 	useEffect(() => {
 		if (!settings.hasCompletedOnboarding) {
-			logger.log("[Debug] Skipping session creation — onboarding in progress");
+			logger.log(
+				"[Debug] Skipping session creation — onboarding in progress",
+			);
 			return;
 		}
 		logger.log("[Debug] Starting connection setup via useAgentSession...");
 		void agentSession.createSession();
-	}, [session.agentId, agentSession.createSession, settings.hasCompletedOnboarding]);
+	}, [
+		session.agentId,
+		agentSession.createSession,
+		settings.hasCompletedOnboarding,
+	]);
 
 	// Refs for cleanup (to access latest values in cleanup function)
 	const messagesRef = useRef(messages);
@@ -704,7 +770,9 @@ function ChatComponent({
 	const sessionIdRef = useRef(session.sessionId);
 	const isLoadingSessionHistoryRef = useRef(isLoadingSessionHistory);
 	const handleSessionUpdateRef = useRef(chat.handleSessionUpdate);
-	const updateAvailableCommandsRef = useRef(agentSession.updateAvailableCommands);
+	const updateAvailableCommandsRef = useRef(
+		agentSession.updateAvailableCommands,
+	);
 	const updateCurrentModeRef = useRef(agentSession.updateCurrentMode);
 	const updateConfigOptionsRef = useRef(agentSession.updateConfigOptions);
 	sessionIdRef.current = session.sessionId;
@@ -728,7 +796,9 @@ function ChatComponent({
 		const timer = window.setTimeout(() => {
 			const state = sessionRef.current.state;
 			if (state === "ready" || state === "error") {
-				logger.log("[Debug] API settings changed, reloading session...");
+				logger.log(
+					"[Debug] API settings changed, reloading session...",
+				);
 				void agentSession.createSession();
 			}
 		}, 2000);
@@ -756,12 +826,18 @@ function ChatComponent({
 						sessionRef.current,
 					);
 				} catch (error) {
-					console.warn("[AI Tools] Auto-export during cleanup failed:", error);
+					console.warn(
+						"[AI Tools] Auto-export during cleanup failed:",
+						error,
+					);
 				}
 				try {
 					await closeSessionRef.current();
 				} catch (error) {
-					console.warn("[AI Tools] Session close during cleanup failed:", error);
+					console.warn(
+						"[AI Tools] Session close during cleanup failed:",
+						error,
+					);
 				}
 			})().catch((error) => {
 				console.warn("[AI Tools] Cleanup error:", error);
@@ -790,7 +866,10 @@ function ChatComponent({
 	useEffect(() => {
 		acpAdapter.onSessionUpdate((update) => {
 			// Filter by sessionId - ignore updates from old sessions
-			if (sessionIdRef.current && update.sessionId !== sessionIdRef.current) {
+			if (
+				sessionIdRef.current &&
+				update.sessionId !== sessionIdRef.current
+			) {
 				logger.log(
 					`[ChatView] Ignoring update for old session: ${update.sessionId} (current: ${sessionIdRef.current})`,
 				);
@@ -847,8 +926,7 @@ function ChatComponent({
 	// latest. Dismissals are remembered for the React-mount lifetime per
 	// version, so users don't get re-nagged after dismissing.
 	useEffect(() => {
-		const activeAgentId =
-			settings.activeAgentId || settings.claude.id;
+		const activeAgentId = settings.activeAgentId || settings.claude.id;
 		if (!activeAgentId) return;
 		let cancelled = false;
 
@@ -858,9 +936,8 @@ function ChatComponent({
 		const delayId = window.setTimeout(() => {
 			void (async () => {
 				try {
-					const { checkAgentVersion, getNpmPackage } = await import(
-						"../../shared/version-checker"
-					);
+					const { checkAgentVersion, getNpmPackage } =
+						await import("../../shared/version-checker");
 					if (!getNpmPackage(activeAgentId)) return;
 					const cmd =
 						activeAgentId === settings.claude.id
@@ -922,7 +999,9 @@ function ChatComponent({
 						info.maxTestedVersion
 					) {
 						const dismissed =
-							plugin.settings.compatWarningDismissed[activeAgentId];
+							plugin.settings.compatWarningDismissed[
+								activeAgentId
+							];
 						if (dismissed !== info.installed) {
 							setCompatWarning({
 								agentId: activeAgentId,
@@ -934,7 +1013,10 @@ function ChatComponent({
 						setCompatWarning(null);
 					}
 				} catch (err) {
-					console.error("[ChatView] agent version check failed:", err);
+					console.error(
+						"[ChatView] agent version check failed:",
+						err,
+					);
 				}
 			})();
 		}, 3000); // 3-second startup grace period
@@ -1055,9 +1137,7 @@ function ChatComponent({
 				void (async () => {
 					const success = await permission.approveActivePermission();
 					if (!success) {
-						new Notice(
-							"[AI Tools] No active permission request",
-						);
+						new Notice("[AI Tools] No active permission request");
 					}
 				})();
 			},
@@ -1070,9 +1150,7 @@ function ChatComponent({
 				void (async () => {
 					const success = await permission.rejectActivePermission();
 					if (!success) {
-						new Notice(
-							"[AI Tools] No active permission request",
-						);
+						new Notice("[AI Tools] No active permission request");
 					}
 				})();
 			},
@@ -1242,9 +1320,7 @@ function TabbedChat({
 	view: ChatView;
 }) {
 	const initialTabRef = useRef<{ id: string }>({ id: crypto.randomUUID() });
-	const [tabs, setTabs] = useState<{ id: string }[]>([
-		initialTabRef.current,
-	]);
+	const [tabs, setTabs] = useState<{ id: string }[]>([initialTabRef.current]);
 	const [activeTabId, setActiveTabId] = useState<string>(
 		initialTabRef.current.id,
 	);
@@ -1318,9 +1394,7 @@ function TabbedChat({
 						view={view}
 						isActiveTab={tab.id === activeTabId}
 						tabStrip={tabStrip}
-						onBusyChange={(busy) =>
-							handleBusyChange(tab.id, busy)
-						}
+						onBusyChange={(busy) => handleBusyChange(tab.id, busy)}
 					/>
 				</div>
 			))}

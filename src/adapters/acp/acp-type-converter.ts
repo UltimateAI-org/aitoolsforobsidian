@@ -95,6 +95,12 @@ export class AcpTypeConverter {
 		for (const option of acpOptions) {
 			if (option.type !== "select") continue;
 
+			// Fast mode is unreliable on our agent backend (chat.ultimateai.org
+			// times out more with it on than off), so it's hidden from the UI.
+			if (/fast[\s_-]?mode/i.test(option.id) || /fast[\s_-]?mode/i.test(option.name)) {
+				continue;
+			}
+
 			const values: SessionConfigSelectOption[] = [];
 			for (const entry of option.options) {
 				if ("group" in entry) {

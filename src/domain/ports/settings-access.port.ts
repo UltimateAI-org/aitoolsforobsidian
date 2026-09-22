@@ -86,6 +86,17 @@ export interface ISettingsAccess {
 	 */
 	deleteSession(sessionId: string): Promise<void>;
 
+	/**
+	 * Delete several saved sessions in one pass.
+	 *
+	 * Removes all matching metadata in a single settings write, then deletes
+	 * each associated message history file. Unknown IDs are ignored.
+	 *
+	 * @param sessionIds - IDs of sessions to delete
+	 * @returns Promise that resolves when all sessions are deleted
+	 */
+	deleteSessions(sessionIds: string[]): Promise<void>;
+
 	// ============================================================
 	// Session Message History Methods
 	// ============================================================

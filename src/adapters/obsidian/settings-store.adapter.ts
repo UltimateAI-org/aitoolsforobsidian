@@ -216,6 +216,45 @@ export class SettingsStore implements ISettingsAccess {
 		await this.deleteSessionMessages(sessionId);
 	}
 
+	/**
+	 * Delete several saved sessions in one pass.
+	 *
+	 * Metadata for every requested ID is removed in a single settings write,
+	 * then each message history file is deleted. A failure on one file does
+	 * not stop the rest.
+	 *
+	 * @param sessionIds - IDs of sessions to delete
+	 * @returns Promise that resolves when all sessions are deleted
+	 */
+	async deleteSessions(sessionIds: string[]): Promise<void> {
+		if (sessionIds.length === 0) {
+			return;
+		}
+
+		const targets = new Set(sessionIds);
+
+		// Delete metadata in one write
+		const sessions = (this.state.savedSessions || []).filter(
+			(s) => !targets.has(s.sessionId),
+		);
+		await this.updateSettings({ savedSessions: sessions });
+
+		// Delete message history files (best effort, one failure does not
+		// abort the others)
+		const results = await Promise.allSettled(
+			sessionIds.map((sessionId) =>
+				this.deleteSessionMessages(sessionId),
+			),
+		);
+
+		const failed = results.filter((r) => r.status === "rejected").length;
+		if (failed > 0) {
+			throw new Error(
+				`Failed to delete ${failed} of ${sessionIds.length} session files`,
+			);
+		}
+	}
+
 	// ============================================================
 	// Session Message History Methods
 	// ============================================================

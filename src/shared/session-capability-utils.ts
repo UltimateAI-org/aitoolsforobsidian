@@ -12,6 +12,8 @@ export interface SessionCapabilityFlags {
 	canFork: boolean;
 	/** Whether session/list is supported (unstable) */
 	canList: boolean;
+	/** Whether session/delete is supported (unstable) */
+	canDelete: boolean;
 }
 
 /**
@@ -25,6 +27,7 @@ export interface SessionCapabilityFlags {
  * - session/resume: agentCapabilities.sessionCapabilities?.resume !== undefined
  * - session/fork: agentCapabilities.sessionCapabilities?.fork !== undefined
  * - session/list: agentCapabilities.sessionCapabilities?.list !== undefined
+ * - session/delete: agentCapabilities.sessionCapabilities?.delete !== undefined
  *
  * @param agentCapabilities - Agent capabilities from ChatSession
  * @returns Object with boolean flags for each session capability
@@ -38,5 +41,6 @@ export function getSessionCapabilityFlags(
 		canResume: sessionCaps?.resume !== undefined,
 		canFork: sessionCaps?.fork !== undefined,
 		canList: sessionCaps?.list !== undefined,
+		canDelete: sessionCaps?.delete !== undefined,
 	};
 }

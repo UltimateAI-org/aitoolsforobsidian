@@ -182,6 +182,12 @@ export default class AgentClientPlugin extends Plugin {
 	 */
 	private adapters = new Set<AcpAdapter>();
 
+	/**
+	 * Session ID each chat tab currently has open, keyed by its adapter.
+	 * Used to keep bulk delete from tearing down a session that is in use.
+	 */
+	private liveSessionIds = new Map<AcpAdapter, string>();
+
 	async onload() {
 		try {
 			console.debug("[AI Tools] Loading plugin...");
@@ -297,6 +303,26 @@ export default class AgentClientPlugin extends Plugin {
 	/** Stop tracking an adapter (its owner is responsible for disconnect). */
 	releaseAdapter(adapter: AcpAdapter): void {
 		this.adapters.delete(adapter);
+		this.liveSessionIds.delete(adapter);
+	}
+
+	/**
+	 * Record which session each chat tab currently has open.
+	 * Deleting a session on the agent tears down its running state, so bulk
+	 * delete needs to know which sessions are in use by any tab, not just the
+	 * one the history modal was opened from.
+	 */
+	setLiveSessionId(adapter: AcpAdapter, sessionId: string | null): void {
+		if (sessionId) {
+			this.liveSessionIds.set(adapter, sessionId);
+		} else {
+			this.liveSessionIds.delete(adapter);
+		}
+	}
+
+	/** Session IDs open in a chat tab right now. */
+	getLiveSessionIds(): Set<string> {
+		return new Set(this.liveSessionIds.values());
 	}
 
 	private disconnectAllAdapters(context: string): void {

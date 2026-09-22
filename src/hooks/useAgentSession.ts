@@ -623,6 +623,7 @@ export function useAgentSession(
 								resume?: Record<string, unknown>;
 								fork?: Record<string, unknown>;
 								list?: Record<string, unknown>;
+								delete?: Record<string, unknown>;
 							};
 							mcpCapabilities?: {
 								http?: boolean;

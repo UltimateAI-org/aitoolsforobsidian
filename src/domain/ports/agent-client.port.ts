@@ -129,6 +129,8 @@ export interface SessionCapabilities {
 	fork?: Record<string, unknown>;
 	/** session/list support (unstable) */
 	list?: Record<string, unknown>;
+	/** session/delete support (unstable) */
+	delete?: Record<string, unknown>;
 }
 
 /**
@@ -464,4 +466,16 @@ export interface IAgentClient {
 	 * @returns Promise resolving to session result with new sessionId
 	 */
 	forkSession(sessionId: string, cwd: string): Promise<ForkSessionResult>;
+
+	/**
+	 * Delete a session on the agent side (unstable).
+	 *
+	 * Removes the session from the agent's own store, so it no longer appears
+	 * in session/list. Only available if
+	 * session.agentCapabilities.sessionCapabilities?.delete is defined.
+	 *
+	 * @param sessionId - Session to delete
+	 * @returns Promise that resolves when the agent has deleted the session
+	 */
+	deleteSession(sessionId: string): Promise<void>;
 }
