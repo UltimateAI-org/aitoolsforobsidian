@@ -1438,6 +1438,50 @@ export class AgentClientSettingTab extends PluginSettingTab {
 			.setHeading();
 
 		new Setting(sectionEl)
+			.setName("Default model")
+			.setDesc(
+				"Model each new chat starts on. You can still switch from the chat. Sonnet is much faster than Opus for note work and costs less.",
+			)
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOptions({
+						sonnet: "Sonnet (recommended)",
+						haiku: "Haiku",
+						opus: "Opus",
+						"sonnet[1m]": "Sonnet, 1M context",
+						"opus[1m]": "Opus, 1M context",
+						"": "Use my Claude Code setting",
+					})
+					.setValue(this.plugin.settings.claudeDefaultModel)
+					.onChange(async (value) => {
+						this.plugin.settings.claudeDefaultModel = value;
+						await this.saveAndNotify();
+					}),
+			);
+
+		new Setting(sectionEl)
+			.setName("Default permission mode")
+			.setDesc(
+				"Permission mode each new chat starts in. Accept edits lets note edits through without asking and still asks before running commands. Bypass permissions gives the agent full access to your system.",
+			)
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOptions({
+						acceptEdits: "Accept edits (recommended)",
+						default: "Manual: ask before every change",
+						auto: "Auto: Claude's safety check decides",
+						plan: "Plan: plan only, no changes",
+						bypassPermissions: "Bypass permissions: no checks ⚠️",
+						"": "Use my Claude Code setting",
+					})
+					.setValue(this.plugin.settings.claudeDefaultMode)
+					.onChange(async (value) => {
+						this.plugin.settings.claudeDefaultMode = value;
+						await this.saveAndNotify();
+					}),
+			);
+
+		new Setting(sectionEl)
 			.setName("Path")
 			.setDesc(
 				"Absolute path to the claude-agent-acp executable. Install via: npm install -g @agentclientprotocol/claude-agent-acp",

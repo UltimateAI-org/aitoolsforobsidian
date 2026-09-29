@@ -71,6 +71,24 @@ const PHASE_LABELS: Record<StreamingPhase, string> = {
 	awaiting_approval: "Waiting for approval...",
 };
 
+/**
+ * Words cycled while waiting for the agent's first output, Claude Code
+ * style, so a long start reads as work in progress instead of a wait.
+ */
+const WAITING_WORDS = [
+	"Thinking...",
+	"Analyzing...",
+	"Planning...",
+	"Reasoning...",
+	"Considering...",
+	"Organizing...",
+	"Crafting...",
+	"Synthesizing...",
+	"Evaluating...",
+	"Working on it...",
+];
+const WAITING_WORD_SECONDS = 4;
+
 function LoadingIndicator({
 	streamingPhase,
 	turnStartedAt,
@@ -93,7 +111,13 @@ function LoadingIndicator({
 		return () => clearInterval(interval);
 	}, [turnStartedAt]);
 
-	const label = PHASE_LABELS[streamingPhase];
+	const label =
+		streamingPhase === "waiting"
+			? WAITING_WORDS[
+					Math.floor(elapsed / WAITING_WORD_SECONDS) %
+						WAITING_WORDS.length
+				]
+			: PHASE_LABELS[streamingPhase];
 	const showTimer = elapsed >= 3 && streamingPhase !== "idle";
 
 	return (

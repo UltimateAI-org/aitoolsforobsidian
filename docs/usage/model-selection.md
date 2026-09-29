@@ -23,9 +23,21 @@ Models are different versions of the AI with varying capabilities:
 Available models depend on the active agent and your subscription/API plan.
 :::
 
-## Model Persistence
+## Default Model
 
-The selected model persists for the current session. Your preference is remembered across sessions.
+The selected model applies to the current chat. Each new chat starts on the default model, set in **Settings → AI Tools → Claude Agent → Default model**:
+
+| Setting | Use it for |
+|---|---|
+| **Sonnet** (default) | Most note work. Much faster than Opus and costs less |
+| Haiku | Quick, simple requests |
+| Opus | Harder tasks where quality matters more than speed |
+| Sonnet / Opus, 1M context | Very long sessions only. Not faster |
+| Use my Claude Code setting | Keep the `model` from your own Claude Code settings |
+
+::: tip
+If a chat feels slow, check the model chip first. Opus can take several times longer than Sonnet on the same skill.
+:::
 
 ## Cost Considerations
 

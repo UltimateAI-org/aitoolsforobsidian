@@ -104,6 +104,113 @@ bumped to 1.0.5 (manifest, package, versions.json).
 
 ---
 
+### Change 5: Default model (Sonnet) and default permission mode (Accept edits)
+
+**Status**: ✅ Done (pending Paul's in-Obsidian test)
+
+The picker alone doesn't help users who never touch it: every new chat
+still starts on the agent's choice, which for claude-agent-acp is the
+user's Claude Code settings or, failing that, the agent's recommended
+Opus (1M). Most users are likely on Opus in Manual mode without knowing.
+
+- `src/plugin.ts` — two settings, `claudeDefaultModel` (default `"sonnet"`)
+  and `claudeDefaultMode` (default `"acceptEdits"`). Empty string = "Use my
+  Claude Code setting", i.e. don't touch the session. Existing installs pick
+  up the defaults on load, so all users get Sonnet + Accept edits.
+- `src/shared/session-defaults.ts` — `applySessionDefaults()` (pure,
+  non-React). Model first (a model switch can rebuild the effort options),
+  then mode. Each is applied through the config option of that category
+  when the agent offers the value, otherwise through legacy
+  `modes`/`models` (`setSessionMode`/`setSessionModel`). Values the agent
+  doesn't offer, and failed requests, are skipped: the session still starts.
+- `src/hooks/useAgentSession.ts` — `createSession()` marks the session
+  ready at once with `selectSessionDefaults()` (the defaults shown on the
+  chips), then runs `applySessionDefaults()` in the background and stores
+  what the agent actually ended up with (a failed request reverts its
+  chip; a result for a session the user already left is dropped). New
+  chats only; load/resume/fork keep the session's own model and mode.
+- `src/hooks/useChat.ts` — `sendMessage()` awaits
+  `waitForSessionDefaults(sessionId)` after the user message and waiting
+  indicator are shown and before the prompt goes out, so a first prompt
+  can't run on the agent's own model/mode. Capped at 90 s.
+
+  The wait is part of the in-flight send promise, so queueing and
+  steering treat it like a running turn. Paul's test found a duplicate
+  prompt: he pressed Stop while the message was waiting (Stop only
+  cancelled on the agent, where nothing was running yet), the text was
+  restored, he re-sent, and both prompts went out once the defaults
+  landed. Now a waiting send carries a token; Stop clears it
+  (`chat.cancelWaitingSend()` in `handleStopGeneration`) and a newer send
+  replaces it, and the waiting prompt is dropped instead of sent.
+
+  First build awaited the requests *before* marking the session ready.
+  Paul's test: no chips at all for about a minute. Wire log: right after
+  `session/new` the agent took 4.6 s to answer `model=sonnet` and 53 s to
+  answer `mode=acceptEdits` (both succeeded). Manual switches later in a
+  session answer in under a second, so the agent only answers once Claude
+  Code has started behind it, which is slow through the gateway. Likely
+  the same delay as the ~50 s "stall before the first reply" seen earlier.
+  Hence ready-first, apply-in-background.
+
+- **Start on the default model instead of switching to it.** Root cause of
+  the 53 s mode wait, from the claude-agent-acp 0.84.0 source: on session
+  creation (`register` phase) *and* after every model switch, the agent
+  runs `refreshContextWindowInBackground()` → `query.getContextUsage()`, a
+  control request to the Claude Code process. Control requests are
+  serialized on one channel, so `setPermissionMode` (and, per the 10:32 run,
+  the first prompt) queue behind it. The agent's own comments say
+  getContextUsage "can add tens of seconds". Its session/create phases
+  themselves take ~0.7 s (error.log stderr timings), so it isn't startup.
+  Through the gateway today that check took ~50 s; this morning it was
+  quick (10:01 run: first output 7 s after the prompt).
+
+  `buildAgentConfigWithApiKey()` now sets `ANTHROPIC_MODEL` to
+  `claudeDefaultModel` in the Claude agent's spawn env (unless the user set
+  one in the agent's env vars). The agent ranks it above settings.json, so
+  sessions start on the default model: no switch, no second
+  getContextUsage. `applySessionDefaults()` then finds the model already
+  selected and only switches the mode. The env is part of the spawn
+  signature, so changing the setting restarts the agent on the next chat.
+
+  The creation-time getContextUsage still runs on every new chat; that
+  wait is on the gateway side (suspected slow token counting) and has been
+  raised with its owner.
+- `AgentClientSettingTab.ts` — "Default model" and "Default permission
+  mode" dropdowns at the top of the Claude Agent section. Labels use
+  version-free names ("Sonnet") because the `sonnet` alias tracks the
+  latest release; the chat chip shows the exact version.
+- Docs: `docs/usage/model-selection.md` and `mode-selection.md` document
+  the defaults. The model page previously claimed the model was remembered
+  across sessions, which wasn't true.
+
+Why these defaults: Sonnet 5.5 did the same Polish Note job as Opus in a
+third of the time. Accept edits lets the core job (editing notes) run
+without prompts while shell commands still ask; Auto currently fails
+through the gateway ("Classifier unavailable"), and Bypass is too
+permissive as a default for everyone (the existing "Auto-allow
+permissions" toggle stays opt-in for the same reason).
+
+Verified `applySessionDefaults()` against a mock agent: defaults applied
+via config options; "Use my Claude Code setting" and unknown values make no
+calls; already-selected values aren't re-sent; legacy modes/models agents
+use `setSessionMode`/`setSessionModel`.
+
+---
+
+### Change 6: Rotating words while waiting for the first output
+
+**Status**: ✅ Done (pending Paul's in-Obsidian test)
+
+`src/components/chat/ChatMessages.tsx` — the `waiting` phase label
+("Starting...") sat unchanged for over a minute when the first reply was
+slow, which looks frozen. It now cycles Claude Code-style words every 4 s
+(`WAITING_WORDS`: "Thinking...", "Analyzing...", "Planning..." etc.; active-work words, not waiting words, per Paul), driven by the indicator's
+existing 1 s elapsed tick. Other phases keep their labels. Deliberately
+says nothing about the server (Paul's call: telling users it's slow
+reads as cheap).
+
+---
+
 ### Result
 
 Same note, same Polish Note skill: 8+ minutes (Opus, cancelled) → 2:58 on

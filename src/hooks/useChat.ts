@@ -87,6 +87,11 @@ export interface UseChatReturn {
 	 */
 	removeQueuedMessage: (id: string) => void;
 
+	/**
+	 * Drop a sent message whose prompt hasn't gone out yet (still waiting
+	 * for a new chat's default model/mode). Called by Stop.
+	 */
+	cancelWaitingSend: () => void;
 
 	/**
 	 * Send a message to the agent.
@@ -175,6 +180,8 @@ export interface SessionContext {
 		audio?: boolean;
 		embeddedContext?: boolean;
 	};
+	/** Resolves once a new chat's default model/mode have been applied */
+	waitForSessionDefaults?: (sessionId: string) => Promise<void>;
 }
 
 /**
@@ -272,6 +279,11 @@ export function useChat(
 	// In-flight prompt call, if any. A send while this is set steers the
 	// agent: cancel the current turn, await its settlement, then send.
 	const inFlightSendRef = useRef<Promise<unknown> | null>(null);
+
+	// Token of the send that is shown but still waiting for a new chat's
+	// default model/mode before its prompt goes out. Stop clears it and a
+	// newer send replaces it; either way the waiting prompt is never sent.
+	const waitingSendRef = useRef<object | null>(null);
 
 	// Messages queued while a turn is in flight. The ref is the source of
 	// truth (read inside sendMessage's settle path); state mirrors it for UI.
@@ -615,6 +627,13 @@ export function useChat(
 		setQueuedMessages(queuedRef.current);
 	}, []);
 
+	/**
+	 * Drop a message still waiting for session defaults (see sendMessage).
+	 */
+	const cancelWaitingSend = useCallback((): void => {
+		waitingSendRef.current = null;
+	}, []);
+
 
 	/**
 	 * Set initial messages from loaded session history.
@@ -772,19 +791,44 @@ export function useChat(
 			setTurnStartedAt(startedAt);
 			setLastUserMessage(content);
 
-			// Phase 4: Send prepared prompt to agent using message-service
-			const sendOp = sendPreparedPrompt(
-				{
-					sessionId: sessionContext.sessionId,
-					agentContent: prepared.agentContent,
-					displayContent: prepared.displayContent,
-					authMethods: sessionContext.authMethods,
-				},
-				agentClient,
-			);
+			// Phase 4: Send prepared prompt to agent using message-service.
+			// A new chat's default model/mode may still be applying, so the
+			// prompt first waits for them (it must not go out on the agent's
+			// own choice). The wait is part of the in-flight send, so queuing
+			// and steering treat it like a running turn.
+			const sessionId = sessionContext.sessionId;
+			const waitToken = {};
+			waitingSendRef.current = waitToken;
+			const sendOp = (async () => {
+				await sessionContext.waitForSessionDefaults?.(sessionId);
+				// Stopped (token cleared) or replaced by a newer send while
+				// waiting: never send this prompt.
+				if (waitingSendRef.current !== waitToken) return null;
+				waitingSendRef.current = null;
+				return sendPreparedPrompt(
+					{
+						sessionId,
+						agentContent: prepared.agentContent,
+						displayContent: prepared.displayContent,
+						authMethods: sessionContext.authMethods,
+					},
+					agentClient,
+				);
+			})();
 			inFlightSendRef.current = sendOp;
 			try {
 				const result = await sendOp;
+
+				if (!result) {
+					// Dropped while waiting. After Stop, settle the UI; a
+					// newer send owns it otherwise.
+					if (waitingSendRef.current === null) {
+						setIsSending(false);
+						setStreamingPhase("idle");
+						setTurnStartedAt(null);
+					}
+					return;
+				}
 
 				// The prompt call resolving is the turn boundary: record how
 				// long the whole turn took on the message it produced.
@@ -855,6 +899,7 @@ export function useChat(
 			sessionContext.sessionId,
 			sessionContext.authMethods,
 			sessionContext.promptCapabilities,
+			sessionContext.waitForSessionDefaults,
 			shouldConvertToWsl,
 			addMessage,
 			stampTurn,
@@ -874,6 +919,7 @@ export function useChat(
 		queuedMessages,
 		queueMessage,
 		removeQueuedMessage,
+		cancelWaitingSend,
 		sendMessage,
 		clearMessages,
 		setInitialMessages,
