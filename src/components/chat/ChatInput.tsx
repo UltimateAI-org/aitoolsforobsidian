@@ -804,17 +804,21 @@ export function ChatInput({
 	}, [restoredMessage, onRestoredMessageConsumed, inputValue]);
 
 	// Config options rendered as chips. Mode and model have dedicated chips
-	// fed by the session's modes/models state, so skip their config-option
-	// twins; also skip anything with nothing to choose between.
+	// fed by the session's modes/models state; skip their config-option twins
+	// only while that dedicated chip is actually shown. claude-agent-acp no
+	// longer sends the legacy `models` state, so its model picker exists only
+	// as a config option. Also skip anything with nothing to choose between.
+	const showModeChip = !!modes && modes.availableModes.length > 1;
+	const showModelChip = !!models && models.availableModels.length > 1;
 	const visibleConfigOptions = useMemo(
 		() =>
 			(configOptions ?? []).filter(
 				(option) =>
-					option.category !== "mode" &&
-					option.category !== "model" &&
+					!(option.category === "mode" && showModeChip) &&
+					!(option.category === "model" && showModelChip) &&
 					option.options.length > 1,
 			),
-		[configOptions],
+		[configOptions, showModeChip, showModelChip],
 	);
 
 	// Quick prompts that are complete enough to show (name + prompt text)
@@ -1028,7 +1032,7 @@ export function ChatInput({
 				{/* Input Actions (Mode + Model + Config Option chips + Send Button) */}
 				<div className="obsidianaitools-chat-input-actions">
 					{/* Mode Selector */}
-					{modes && modes.availableModes.length > 1 && (
+					{showModeChip && modes && (
 						<SessionOptionChip
 							items={modes.availableModes.map((m) => ({
 								value: m.id,
@@ -1041,7 +1045,7 @@ export function ChatInput({
 					)}
 
 					{/* Model Selector (experimental) */}
-					{models && models.availableModels.length > 1 && (
+					{showModelChip && models && (
 						<SessionOptionChip
 							items={models.availableModels.map((m) => ({
 								value: m.modelId,
@@ -1057,7 +1061,14 @@ export function ChatInput({
 					{visibleConfigOptions.map((option) => (
 						<SessionOptionChip
 							key={option.id}
-							label={option.name}
+							// Mode and model values name themselves ("Opus"),
+							// others need the prefix ("Effort: High")
+							label={
+								option.category === "mode" ||
+								option.category === "model"
+									? undefined
+									: option.name
+							}
 							items={option.options}
 							currentValue={option.currentValue}
 							title={option.description}
