@@ -71,6 +71,41 @@ const PHASE_LABELS: Record<StreamingPhase, string> = {
 	awaiting_approval: "Waiting for approval...",
 };
 
+/**
+ * Words cycled in phases that can last a long time, Claude Code style, so
+ * a long stretch reads as work in progress instead of a hang. Phases not
+ * listed keep their PHASE_LABELS text.
+ */
+const PHASE_WORDS: Partial<Record<StreamingPhase, string[]>> = {
+	// Before the agent's first output
+	waiting: [
+		"Thinking...",
+		"Analyzing...",
+		"Planning...",
+		"Reasoning...",
+		"Considering...",
+		"Organizing...",
+		"Crafting...",
+		"Synthesizing...",
+		"Evaluating...",
+		"Working on it...",
+	],
+	// Between the agent's outputs, once it has started
+	responding: [
+		"Responding...",
+		"Working...",
+		"Processing...",
+		"Composing...",
+		"Refining...",
+		"Structuring...",
+		"Polishing...",
+		"Checking details...",
+		"Putting it together...",
+		"Still working...",
+	],
+};
+const PHASE_WORD_SECONDS = 4;
+
 function LoadingIndicator({
 	streamingPhase,
 	turnStartedAt,
@@ -93,7 +128,10 @@ function LoadingIndicator({
 		return () => clearInterval(interval);
 	}, [turnStartedAt]);
 
-	const label = PHASE_LABELS[streamingPhase];
+	const words = PHASE_WORDS[streamingPhase];
+	const label = words
+		? words[Math.floor(elapsed / PHASE_WORD_SECONDS) % words.length]
+		: PHASE_LABELS[streamingPhase];
 	const showTimer = elapsed >= 3 && streamingPhase !== "idle";
 
 	return (

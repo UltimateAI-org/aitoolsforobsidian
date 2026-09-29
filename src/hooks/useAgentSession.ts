@@ -17,6 +17,17 @@ import type {
 import type { AgentError } from "../domain/models/agent-error";
 import { toAgentConfig } from "../shared/settings-utils";
 import { mapToApiUrl } from "../shared/url-mapper";
+import {
+	applySessionDefaults,
+	selectSessionDefaults,
+} from "../shared/session-defaults";
+
+/**
+ * How long a prompt waits for a new chat's default model/mode to be
+ * applied. The agent can take close to a minute to answer them (Claude Code
+ * startup through the gateway); past this the prompt goes out anyway.
+ */
+const SESSION_DEFAULTS_WAIT_MS = 90000;
 
 // ============================================================================
 // Types
@@ -157,6 +168,13 @@ export interface UseAgentSessionReturn {
 	 * @param value - Value identifier to select
 	 */
 	setConfigOption: (configId: string, value: string) => Promise<void>;
+
+	/**
+	 * Wait until a new chat's default model and mode have been applied.
+	 * Returns at once for other sessions or when nothing is pending.
+	 * @param sessionId - Session about to be prompted
+	 */
+	waitForSessionDefaults: (sessionId: string) => Promise<void>;
 }
 
 // ============================================================================
@@ -286,6 +304,18 @@ function buildAgentConfigWithApiKey(
 		}
 	}
 
+	// Claude: start sessions on the default model instead of switching to it
+	// after session/new. Every model switch makes claude-agent-acp re-read
+	// the context window (getContextUsage), a control request that can take
+	// tens of seconds through a slow gateway; everything sent to Claude Code
+	// after it (mode change, first prompt) queues behind it.
+	// ANTHROPIC_MODEL outranks settings.json in the agent. A value the user
+	// set in the agent's own env vars wins.
+	const defaultModel = settings.claudeDefaultModel.trim();
+	if (agentId === settings.claude.id && defaultModel && !env.ANTHROPIC_MODEL) {
+		env.ANTHROPIC_MODEL = defaultModel;
+	}
+
 	return {
 		...baseConfig,
 		env,
@@ -378,6 +408,30 @@ export function useAgentSession(
 	// against the current config so env changes (API key, base URL) force a
 	// process re-initialization instead of reusing the old environment.
 	const lastInitSignatureRef = useRef<string | null>(null);
+
+	// Default model/mode still being applied to a new chat (see createSession)
+	const pendingDefaultsRef = useRef<{
+		sessionId: string;
+		promise: Promise<void>;
+	} | null>(null);
+
+	/**
+	 * Wait until a new chat's default model and mode have been applied, so
+	 * its first prompt doesn't go out on the agent's own choice. Returns at
+	 * once for any other session, or when nothing is pending.
+	 */
+	const waitForSessionDefaults = useCallback(async (sessionId: string) => {
+		const pending = pendingDefaultsRef.current;
+		if (!pending || pending.sessionId !== sessionId) return;
+		let timer: number | undefined;
+		await Promise.race([
+			pending.promise,
+			new Promise<void>((resolve) => {
+				timer = window.setTimeout(resolve, SESSION_DEFAULTS_WAIT_MS);
+			}),
+		]);
+		window.clearTimeout(timer);
+	}, []);
 
 	// Register error callback immediately (not in useEffect) to catch errors during initial createSession
 	useEffect(() => {
@@ -509,15 +563,32 @@ export function useAgentSession(
 			const sessionResult =
 				await agentClient.newSession(workingDirectory);
 
+			// The user's default model and mode (new chats only: loaded,
+			// resumed and forked sessions keep theirs). The chips show them
+			// straight away; the requests finish in the background because
+			// the agent only answers once Claude Code has started, which
+			// can take close to a minute. The first prompt waits for them
+			// (see waitForSessionDefaults).
+			const defaults =
+				activeAgentId === settings.claude.id
+					? {
+							model: settings.claudeDefaultModel,
+							mode: settings.claudeDefaultMode,
+						}
+					: null;
+			const options = defaults
+				? selectSessionDefaults(sessionResult, defaults)
+				: sessionResult;
+
 			// Success - update to ready state
 			setSession((prev) => ({
 				...prev,
 				sessionId: sessionResult.sessionId,
 				state: "ready",
 				authMethods: authMethods,
-				modes: sessionResult.modes,
-				models: sessionResult.models,
-				configOptions: sessionResult.configOptions,
+				modes: options.modes,
+				models: options.models,
+				configOptions: options.configOptions,
 				// Only update capabilities/info if we re-initialized
 				// Otherwise, keep the previous value (from the same agent)
 				promptCapabilities: needsInitialize
@@ -529,6 +600,34 @@ export function useAgentSession(
 				agentInfo: needsInitialize ? agentInfo : prev.agentInfo,
 				lastActivityAt: new Date(),
 			}));
+
+			if (defaults) {
+				const sessionId = sessionResult.sessionId;
+				const promise = applySessionDefaults(
+					agentClient,
+					sessionId,
+					sessionResult,
+					defaults,
+					(message, error) => console.error(message, error),
+				).then((applied) => {
+					// Store what the agent actually has (a failed request
+					// reverts its chip), unless the user has already moved
+					// on to another session.
+					setSession((prev) =>
+						prev.sessionId === sessionId
+							? {
+									...prev,
+									modes: applied.modes ?? prev.modes,
+									models: applied.models ?? prev.models,
+									configOptions:
+										applied.configOptions ??
+										prev.configOptions,
+								}
+							: prev,
+					);
+				});
+				pendingDefaultsRef.current = { sessionId, promise };
+			}
 		} catch (error) {
 			// Error - update to error state
 			setSession((prev) => ({ ...prev, state: "error" }));
@@ -1038,5 +1137,6 @@ export function useAgentSession(
 		setModel,
 		updateConfigOptions,
 		setConfigOption,
+		waitForSessionDefaults,
 	};
 }

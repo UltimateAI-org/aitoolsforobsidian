@@ -102,6 +102,11 @@ export interface AgentClientPluginSettings {
 	apiKey: string;
 	baseUrl: string;
 	model: string;
+	// Model and permission mode applied to each new Claude Agent chat.
+	// Values are the agent's own ids ("sonnet", "acceptEdits"); an empty
+	// string leaves the agent's choice (the user's Claude Code settings).
+	claudeDefaultModel: string;
+	claudeDefaultMode: string;
 }
 
 // In claude-agent-acp v0.37.0 the npm package and binary were renamed from
@@ -168,6 +173,8 @@ const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	apiKey: "",
 	baseUrl: "https://chat.obsidianaitools.com",
 	model: "MiniMax-M2.1",
+	claudeDefaultModel: "sonnet",
+	claudeDefaultMode: "acceptEdits",
 };
 
 export default class AgentClientPlugin extends Plugin {
@@ -788,6 +795,14 @@ export default class AgentClientPlugin extends Plugin {
 				typeof rawSettings.model === "string"
 					? rawSettings.model
 					: DEFAULT_SETTINGS.model,
+			claudeDefaultModel:
+				typeof rawSettings.claudeDefaultModel === "string"
+					? rawSettings.claudeDefaultModel
+					: DEFAULT_SETTINGS.claudeDefaultModel,
+			claudeDefaultMode:
+				typeof rawSettings.claudeDefaultMode === "string"
+					? rawSettings.claudeDefaultMode
+					: DEFAULT_SETTINGS.claudeDefaultMode,
 		};
 
 		// Migrate: update displayName from "Claude Code" to "Claude Agent" (package rename)

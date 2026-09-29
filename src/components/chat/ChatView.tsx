@@ -157,6 +157,7 @@ function ChatComponent({
 			sessionId: session.sessionId,
 			authMethods: session.authMethods,
 			promptCapabilities: session.promptCapabilities,
+			waitForSessionDefaults: agentSession.waitForSessionDefaults,
 		},
 		{
 			windowsWslMode: settings.windowsWslMode,
@@ -676,6 +677,9 @@ function ChatComponent({
 		// filled composer means queue/steer) and leave stale text behind.
 		const lastMessage =
 			chat.queuedMessages.length > 0 ? null : chat.lastUserMessage;
+		// A message still waiting for the new chat's defaults hasn't
+		// reached the agent, so cancelling there alone wouldn't stop it
+		chat.cancelWaitingSend();
 		await agentSession.cancelOperation();
 		if (lastMessage) {
 			setRestoredMessage(lastMessage);
@@ -685,6 +689,7 @@ function ChatComponent({
 		agentSession,
 		chat.queuedMessages.length,
 		chat.lastUserMessage,
+		chat.cancelWaitingSend,
 	]);
 
 	const handleSendMessageFromPermission = useCallback(
