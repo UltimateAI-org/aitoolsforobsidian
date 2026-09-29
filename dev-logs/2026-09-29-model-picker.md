@@ -205,7 +205,7 @@ use `setSessionMode`/`setSessionModel`.
 ("Starting...") sat unchanged for over a minute when the first reply was
 slow, which looks frozen. It now cycles Claude Code-style words every 4 s
 (`WAITING_WORDS`: "Thinking...", "Analyzing...", "Planning..." etc.; active-work words, not waiting words, per Paul), driven by the indicator's
-existing 1 s elapsed tick. Other phases keep their labels. Deliberately
+existing 1 s elapsed tick. The `responding` phase, which can also sit for a long time between outputs, cycles its own list ("Responding...", "Composing...", "Refining...", "Still working..."). Both lists live in `PHASE_WORDS`; other phases keep their `PHASE_LABELS` text. Deliberately
 says nothing about the server (Paul's call: telling users it's slow
 reads as cheap).
 
