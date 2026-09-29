@@ -1,6 +1,6 @@
 # Dev Log — 2026-09-29 — Show the model picker for claude-agent-acp
 
-## Version: 1.0.5
+## Version: 1.0.5 (Changes 1–4), 1.0.6 (Changes 5–6)
 
 ---
 
