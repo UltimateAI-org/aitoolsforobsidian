@@ -126,11 +126,58 @@ export class AcpTypeConverter {
 				description: option.description ?? undefined,
 				category: option.category ?? undefined,
 				currentValue: option.currentValue,
-				options: values,
+				options:
+					option.category === "model"
+						? AcpTypeConverter.tidyModelOptions(
+								values,
+								option.currentValue,
+							)
+						: values,
 			});
 		}
 
 		return converted.length > 0 ? converted : undefined;
+	}
+
+	/**
+	 * Clean up the model picker's option list.
+	 *
+	 * - Fable is hidden: it costs far more than the other models for the
+	 *   note work this plugin is used for. It stays if it is already the
+	 *   current model, so the chip can still show what is selected.
+	 * - Names are given a version number when the agent leaves it out
+	 *   ("Opus" → "Opus 5.5", "Opus (1M context)" → "Opus 5.5 (1M context)"),
+	 *   so every entry reads the same way. The version is taken from the
+	 *   description, which starts with e.g. "Opus 5.5 · ...".
+	 */
+	private static tidyModelOptions(
+		options: SessionConfigSelectOption[],
+		currentValue: string,
+	): SessionConfigSelectOption[] {
+		return options
+			.filter(
+				(option) =>
+					option.value === currentValue ||
+					!(/fable/i.test(option.value) || /fable/i.test(option.name)),
+			)
+			.map((option) => {
+				// Already versioned ("Sonnet 5.5 ..."); the "1M" in "(1M context)" doesn't count
+				if (/^[A-Za-z]+ \d/.test(option.name) || !option.description) {
+					return option;
+				}
+				const match = /^([A-Za-z]+) (\d+(?:\.\d+)*)\b/.exec(
+					option.description,
+				);
+				if (!match) return option;
+				const [, family, version] = match;
+				if (!option.name.toLowerCase().startsWith(family.toLowerCase())) {
+					return option;
+				}
+				return {
+					...option,
+					name: `${family} ${version}${option.name.slice(family.length)}`,
+				};
+			});
 	}
 
 	/**
