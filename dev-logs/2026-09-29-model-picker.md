@@ -1,6 +1,6 @@
 # Dev Log — 2026-09-29 — Show the model picker for claude-agent-acp
 
-## Version: 1.0.4 (no bump)
+## Version: 1.0.5
 
 ---
 
@@ -89,6 +89,24 @@ version. Verified against the option list from Paul's wire log.
   Claude Code settings; Paul's vault default is set via the vault's
   `.claude/settings.json` (personal config, not part of the plugin).
 - The picked model is per session, not remembered across new chats.
-- `AGENT_MAX_TESTED_VERSIONS["claude-code-acp"]` stays at 0.79.0 until
-  0.84.0 is tested.
-- No version bump. This ships with the next release.
+
+---
+
+### Change 4: Release v1.0.5, claude-agent-acp tested ceiling 0.79.0 → 0.84.0
+
+**Status**: ✅ Done
+
+Paul upgraded claude-agent-acp to 0.84.0 and ran three Polish Note sessions
+on it with the model picker (Opus → Sonnet 5.5 switch, full skill run
+including the Automation Log write) without issues.
+`AGENT_MAX_TESTED_VERSIONS["claude-code-acp"]` raised to 0.84.0; version
+bumped to 1.0.5 (manifest, package, versions.json).
+
+---
+
+### Result
+
+Same note, same Polish Note skill: 8+ minutes (Opus, cancelled) → 2:58 on
+Sonnet 5.5 (edits applied at ~1:57). The remaining gap to Claudian (~1:15)
+is on the gateway side (no prompt cache reads, one ~50 s stall before the
+first reply) and has been raised with the gateway owner.
