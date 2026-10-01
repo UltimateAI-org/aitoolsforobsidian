@@ -54,7 +54,12 @@ export interface QueuedMessage {
  * - responding: Receiving message/tool chunks (agent is responding)
  * - awaiting_approval: A permission request is shown, waiting for user action
  */
-export type StreamingPhase = "idle" | "waiting" | "thinking" | "responding" | "awaiting_approval";
+export type StreamingPhase =
+	| "idle"
+	| "waiting"
+	| "thinking"
+	| "responding"
+	| "awaiting_approval";
 
 /**
  * Return type for useChat hook.
@@ -271,7 +276,8 @@ export function useChat(
 	// Message state
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [isSending, setIsSending] = useState(false);
-	const [streamingPhase, setStreamingPhase] = useState<StreamingPhase>("idle");
+	const [streamingPhase, setStreamingPhase] =
+		useState<StreamingPhase>("idle");
 	const [turnStartedAt, setTurnStartedAt] = useState<number | null>(null);
 	const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
 	const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null);
@@ -289,7 +295,6 @@ export function useChat(
 	// truth (read inside sendMessage's settle path); state mirrors it for UI.
 	const queuedRef = useRef<QueuedMessage[]>([]);
 	const [queuedMessages, setQueuedMessages] = useState<QueuedMessage[]>([]);
-
 
 	// Latest sendMessage, so the queue flush (which runs inside sendMessage)
 	// and queueMessage's send-now fallback can call it without a stale closure
@@ -368,6 +373,9 @@ export function useChat(
 				} else {
 					updatedMessage.content.push(content);
 				}
+			} else if (content.type === "notice") {
+				// Each notice is its own line, never merged or replaced
+				updatedMessage.content.push(content);
 			} else {
 				// Replace or add non-text content
 				const existingIndex = updatedMessage.content.findIndex(
@@ -544,6 +552,13 @@ export function useChat(
 					});
 					break;
 
+				case "agent_notice":
+					updateLastMessage({
+						type: "notice",
+						text: update.text,
+					});
+					break;
+
 				case "user_message_chunk":
 					updateUserMessage({
 						type: "text",
@@ -553,7 +568,11 @@ export function useChat(
 
 				case "tool_call":
 				case "tool_call_update":
-					setStreamingPhase(update.permissionRequest ? "awaiting_approval" : "responding");
+					setStreamingPhase(
+						update.permissionRequest
+							? "awaiting_approval"
+							: "responding",
+					);
 					upsertToolCall(update.toolCallId, {
 						type: "tool_call",
 						toolCallId: update.toolCallId,
@@ -633,7 +652,6 @@ export function useChat(
 	const cancelWaitingSend = useCallback((): void => {
 		waitingSendRef.current = null;
 	}, []);
-
 
 	/**
 	 * Set initial messages from loaded session history.
@@ -722,9 +740,7 @@ export function useChat(
 				}
 				await Promise.race([
 					inFlightSendRef.current.catch(() => undefined),
-					new Promise((resolve) =>
-						window.setTimeout(resolve, 5000),
-					),
+					new Promise((resolve) => window.setTimeout(resolve, 5000)),
 				]);
 				inFlightSendRef.current = null;
 			}

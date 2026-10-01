@@ -54,6 +54,13 @@ export function MessageContentRenderer({
 		case "agent_thought":
 			return <CollapsibleThought text={content.text} plugin={plugin} />;
 
+		case "notice":
+			return (
+				<div className="obsidianaitools-message-notice">
+					<MarkdownTextRenderer text={content.text} plugin={plugin} />
+				</div>
+			);
+
 		case "tool_call":
 			return (
 				<ToolCallRenderer
