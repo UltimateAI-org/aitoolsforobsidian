@@ -160,8 +160,13 @@ export async function preparePrompt(
 	// Step 1: Extract all mentioned notes from the message
 	const mentionedNotes = extractMentionedNotes(input.message, mentionService);
 
-	// Step 2: Build context based on agent capabilities
-	if (input.supportsEmbeddedContext) {
+	// Step 2: Build context based on agent capabilities.
+	// Slash commands always use text context: Claude Code only expands a
+	// command when the LAST content block is text starting with "/", and
+	// claude-agent-acp moves embedded Resource text to the end of the prompt.
+	// Otherwise the model has to load the command as a skill itself, costing
+	// an extra model round trip.
+	if (input.supportsEmbeddedContext && !isSlashCommand(input.message)) {
 		return preparePromptWithEmbeddedContext(
 			input,
 			vaultAccess,
@@ -272,26 +277,10 @@ async function preparePromptWithEmbeddedContext(
 		...(input.images || []),
 	];
 
-	// Build auto-mention context metadata for UI
-	const autoMentionContext =
-		input.activeNote && !input.isAutoMentionDisabled
-			? {
-					noteName: input.activeNote.name,
-					notePath: input.activeNote.path,
-					selection: input.activeNote.selection
-						? {
-								fromLine:
-									input.activeNote.selection.from.line + 1,
-								toLine: input.activeNote.selection.to.line + 1,
-							}
-						: undefined,
-				}
-			: undefined;
-
 	return {
 		displayContent,
 		agentContent,
-		autoMentionContext,
+		autoMentionContext: buildAutoMentionContext(input),
 	};
 }
 
@@ -363,6 +352,32 @@ async function preparePromptWithTextContext(
 				: `@[[${input.activeNote.name}]]\n`
 			: "";
 
+	// Build content arrays
+	const displayContent: PromptContent[] = [
+		...(input.message
+			? [{ type: "text" as const, text: input.message }]
+			: []),
+		...(input.images || []),
+	];
+
+	// Slash command: context + images first, command alone in the last block
+	if (isSlashCommand(input.message)) {
+		const contextText = [contextBlocks.join("\n"), autoMentionPrefix]
+			.filter(Boolean)
+			.join("\n\n");
+		return {
+			displayContent,
+			agentContent: [
+				...(contextText
+					? [{ type: "text" as const, text: contextText }]
+					: []),
+				...(input.images || []),
+				{ type: "text" as const, text: input.message },
+			],
+			autoMentionContext: buildAutoMentionContext(input),
+		};
+	}
+
 	// Build agent message text (context blocks + auto-mention prefix + original message)
 	const agentMessageText =
 		contextBlocks.length > 0
@@ -372,14 +387,6 @@ async function preparePromptWithTextContext(
 				input.message
 			: autoMentionPrefix + input.message;
 
-	// Build content arrays
-	const displayContent: PromptContent[] = [
-		...(input.message
-			? [{ type: "text" as const, text: input.message }]
-			: []),
-		...(input.images || []),
-	];
-
 	const agentContent: PromptContent[] = [
 		...(agentMessageText
 			? [{ type: "text" as const, text: agentMessageText }]
@@ -387,26 +394,38 @@ async function preparePromptWithTextContext(
 		...(input.images || []),
 	];
 
-	// Build auto-mention context metadata for UI
-	const autoMentionContext =
-		input.activeNote && !input.isAutoMentionDisabled
-			? {
-					noteName: input.activeNote.name,
-					notePath: input.activeNote.path,
-					selection: input.activeNote.selection
-						? {
-								fromLine:
-									input.activeNote.selection.from.line + 1,
-								toLine: input.activeNote.selection.to.line + 1,
-							}
-						: undefined,
-				}
-			: undefined;
-
 	return {
 		displayContent,
 		agentContent,
-		autoMentionContext,
+		autoMentionContext: buildAutoMentionContext(input),
+	};
+}
+
+/**
+ * Whether the message is a slash command (e.g. "/polish-note args").
+ */
+function isSlashCommand(message: string): boolean {
+	return message.startsWith("/");
+}
+
+/**
+ * Build auto-mention context metadata for the UI.
+ */
+function buildAutoMentionContext(
+	input: PreparePromptInput,
+): PreparePromptResult["autoMentionContext"] {
+	if (!input.activeNote || input.isAutoMentionDisabled) {
+		return undefined;
+	}
+	return {
+		noteName: input.activeNote.name,
+		notePath: input.activeNote.path,
+		selection: input.activeNote.selection
+			? {
+					fromLine: input.activeNote.selection.from.line + 1,
+					toLine: input.activeNote.selection.to.line + 1,
+				}
+			: undefined,
 	};
 }
 
@@ -600,7 +619,10 @@ async function handleSendError(
 	if (isEmptyResponseError(error)) {
 		console.warn("[AgentClient] Empty response from agent, retrying...");
 		try {
-			const result = await agentClient.sendPrompt(sessionId, agentContent);
+			const result = await agentClient.sendPrompt(
+				sessionId,
+				agentContent,
+			);
 			return {
 				success: true,
 				displayContent,
@@ -621,8 +643,7 @@ async function handleSendError(
 						title: "Empty Response",
 						message:
 							"The agent returned an empty response. This is usually a transient issue.",
-						suggestion:
-							"Please try sending your message again.",
+						suggestion: "Please try sending your message again.",
 						occurredAt: new Date(),
 						sessionId,
 						originalError: retryError,

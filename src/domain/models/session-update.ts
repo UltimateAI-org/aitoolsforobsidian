@@ -55,6 +55,15 @@ export interface AgentThoughtChunk extends SessionUpdateBase {
 }
 
 /**
+ * Status notice from the agent (a warning or info line, not model output).
+ * Kept apart from the reply text so it doesn't merge into it.
+ */
+export interface AgentNotice extends SessionUpdateBase {
+	type: "agent_notice";
+	text: string;
+}
+
+/**
  * Text chunk from user's message during session/load.
  * Used for reconstructing user messages when loading a saved session.
  */
@@ -168,6 +177,7 @@ export interface ConfigOptionUpdate extends SessionUpdateBase {
 export type SessionUpdate =
 	| AgentMessageChunk
 	| AgentThoughtChunk
+	| AgentNotice
 	| UserMessageChunk
 	| ToolCall
 	| ToolCallUpdate

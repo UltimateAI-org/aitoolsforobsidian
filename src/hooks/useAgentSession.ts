@@ -11,9 +11,7 @@ import type {
 import type { IAgentClient } from "../domain/ports/agent-client.port";
 import type { ISettingsAccess } from "../domain/ports/settings-access.port";
 import type { AgentClientPluginSettings } from "../plugin";
-import type {
-	BaseAgentSettings,
-} from "../domain/models/agent-config";
+import type { BaseAgentSettings } from "../domain/models/agent-config";
 import type { AgentError } from "../domain/models/agent-error";
 import { toAgentConfig } from "../shared/settings-utils";
 import { mapToApiUrl } from "../shared/url-mapper";
@@ -182,6 +180,24 @@ export interface UseAgentSessionReturn {
 // ============================================================================
 
 /**
+ * Whether two slash-command lists are identical (same order, same fields).
+ */
+function areCommandsEqual(
+	a: SlashCommand[] | undefined,
+	b: SlashCommand[],
+): boolean {
+	if (!a || a.length !== b.length) {
+		return false;
+	}
+	return a.every(
+		(cmd, i) =>
+			cmd.name === b[i].name &&
+			cmd.description === b[i].description &&
+			(cmd.hint ?? null) === (b[i].hint ?? null),
+	);
+}
+
+/**
  * Get the currently active agent ID from settings.
  */
 function getActiveAgentId(settings: AgentClientPluginSettings): string {
@@ -312,7 +328,11 @@ function buildAgentConfigWithApiKey(
 	// ANTHROPIC_MODEL outranks settings.json in the agent. A value the user
 	// set in the agent's own env vars wins.
 	const defaultModel = settings.claudeDefaultModel.trim();
-	if (agentId === settings.claude.id && defaultModel && !env.ANTHROPIC_MODEL) {
+	if (
+		agentId === settings.claude.id &&
+		defaultModel &&
+		!env.ANTHROPIC_MODEL
+	) {
 		env.ANTHROPIC_MODEL = defaultModel;
 	}
 
@@ -901,10 +921,17 @@ export function useAgentSession(
 	 * Called by AcpAdapter when receiving available_commands_update.
 	 */
 	const updateAvailableCommands = useCallback((commands: SlashCommand[]) => {
-		setSession((prev) => ({
-			...prev,
-			availableCommands: commands,
-		}));
+		setSession((prev) => {
+			// claude-agent-acp sends the same full list repeatedly (e.g. twice
+			// per prompt); skip the re-render when nothing changed.
+			if (areCommandsEqual(prev.availableCommands, commands)) {
+				return prev;
+			}
+			return {
+				...prev,
+				availableCommands: commands,
+			};
+		});
 	}, []);
 
 	/**

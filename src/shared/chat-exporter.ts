@@ -215,6 +215,9 @@ tags: [obsidianaitools]
 			case "agent_thought":
 				return `> [!info]- Thinking\n> ${content.text.split("\n").join("\n> ")}\n\n`;
 
+			case "notice":
+				return `> [!warning] Notice\n> ${content.text.split("\n").join("\n> ")}\n\n`;
+
 			case "tool_call":
 				return this.convertToolCallToMarkdown(content);
 

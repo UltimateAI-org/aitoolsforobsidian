@@ -215,6 +215,22 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Plan */
+.obsidianaitools-message-notice {
+	margin: 6px 0;
+	padding: 4px 10px;
+	border-left: 3px solid var(--text-warning);
+	border-radius: 4px;
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	user-select: text;
+	overflow-wrap: break-word;
+}
+
+.obsidianaitools-message-notice p {
+	margin: 0;
+}
+
 .obsidianaitools-message-plan {
 	padding: 8px;
 	margin-top: 4px;

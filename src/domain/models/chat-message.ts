@@ -167,6 +167,7 @@ export interface ChatMessage {
  * - plan: Agent's task breakdown
  * - permission_request: Request for user approval
  * - terminal: Reference to a terminal session
+ * - notice: Agent status notice (warning/info), shown apart from the reply
  */
 export type MessageContent =
 	| {
@@ -187,6 +188,10 @@ export type MessageContent =
 	  }
 	| {
 			type: "agent_thought";
+			text: string;
+	  }
+	| {
+			type: "notice";
 			text: string;
 	  }
 	| {

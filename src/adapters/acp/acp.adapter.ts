@@ -89,6 +89,40 @@ export interface IAcpClient extends acp.Client {
  *  cover the run-up to a failure without the buffer itself growing large. */
 const MAX_BUFFERED_STDERR_CHUNKS = 200;
 
+/**
+ * Whether an agent_message_chunk is a status notice rather than model output.
+ *
+ * claude-agent-acp sends notices (warnings, model fallback, auto-mode
+ * fallback) as a `notice` update only to clients advertising
+ * `session.notices`; the ACP SDK's schema would reject that update type, so
+ * we don't advertise it and get the fallback instead: a whole
+ * "**Title:** text" chunk with no messageId (model chunks always carry one),
+ * sometimes tagged `_meta.claudeCode.kind = "informational"`.
+ */
+function isAgentNotice(
+	meta: { [key: string]: unknown } | null | undefined,
+	messageId: string | null | undefined,
+	text: string,
+): boolean {
+	const claudeCode = meta?.claudeCode as { kind?: unknown } | undefined;
+	if (claudeCode?.kind === "informational") {
+		return true;
+	}
+	return !messageId && /^\*\*[^*\n]{1,80}\*\*/.test(text);
+}
+
+/**
+ * Claude Code's "auto mode … no longer charge for classifier requests"
+ * notice, in its gateway variant ("your requests go through <host>"). Only
+ * the gateway operator can act on it, so it's noise for plugin users.
+ */
+function isGatewayClassifierNotice(text: string): boolean {
+	return (
+		text.includes("no longer charge for classifier requests") &&
+		text.includes("requests go through")
+	);
+}
+
 export class AcpAdapter implements IAgentClient, IAcpClient {
 	private connection: acp.ClientSideConnection | null = null;
 	private agentProcess: ChildProcess | null = null;
@@ -1543,8 +1577,20 @@ To fix:
 		switch (update.sessionUpdate) {
 			case "agent_message_chunk":
 				if (update.content.type === "text") {
+					const isNotice = isAgentNotice(
+						update._meta,
+						update.messageId,
+						update.content.text,
+					);
+					if (isNotice && isGatewayClassifierNotice(update.content.text)) {
+						this.logger.log(
+							"[AcpAdapter] Hid gateway classifier-billing notice:",
+							update.content.text,
+						);
+						break;
+					}
 					this.sessionUpdateCallback?.({
-						type: "agent_message_chunk",
+						type: isNotice ? "agent_notice" : "agent_message_chunk",
 						sessionId,
 						text: update.content.text,
 					});
