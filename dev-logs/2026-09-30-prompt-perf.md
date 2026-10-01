@@ -1,6 +1,6 @@
 # Dev Log — 2026-09-30 — Faster slash commands, fewer re-renders, agent notices
 
-## Version: 1.0.6 (unreleased, branch `feat/prompt-perf`)
+## Version: 1.0.7
 
 ---
 
