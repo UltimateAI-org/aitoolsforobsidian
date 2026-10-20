@@ -42,6 +42,8 @@ export interface AgentUpdateBannerProps {
 	/** The highest tested version, shown in the untested wording. */
 	maxTestedVersion?: string | null;
 	onDismiss: () => void;
+	/** Turn update banners off entirely ("Don't show again"). */
+	onDisable: () => void;
 	onUpdated: () => void;
 }
 
@@ -60,6 +62,7 @@ export function AgentUpdateBanner({
 	untested = false,
 	maxTestedVersion,
 	onDismiss,
+	onDisable,
 	onUpdated,
 }: AgentUpdateBannerProps) {
 	const [installing, setInstalling] = useState(false);
@@ -193,6 +196,14 @@ export function AgentUpdateBanner({
 					disabled={installing}
 				>
 					Dismiss
+				</button>
+				<button
+					className="obsidianaitools-agent-update-banner-dismiss"
+					onClick={onDisable}
+					disabled={installing}
+					title="Hide update notices for all versions. Turn back on in Settings → System status."
+				>
+					Don't show again
 				</button>
 			</div>
 		</div>

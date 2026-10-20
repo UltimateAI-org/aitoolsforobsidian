@@ -974,6 +974,7 @@ function ChatComponent({
 						settings.agentUpdateDismissed[activeAgentId] ===
 							info.latest;
 					const shouldShow =
+						settings.showAgentUpdateNotices &&
 						info.isInstalled &&
 						!!info.latest &&
 						!alreadyDismissed &&
@@ -1040,6 +1041,7 @@ function ChatComponent({
 		settings.gemini.command,
 		settings.nodePath,
 		settings.agentUpdateDismissed,
+		settings.showAgentUpdateNotices,
 	]);
 
 	// ============================================================
@@ -1222,6 +1224,15 @@ function ChatComponent({
 								...plugin.settings.agentUpdateDismissed,
 								[agentUpdate.agentId]: agentUpdate.latest,
 							},
+						});
+						setAgentUpdate(null);
+					}}
+					onDisable={() => {
+						// Turn the banner off for all versions; re-enable
+						// under Settings → System status
+						void plugin.saveSettingsAndNotify({
+							...plugin.settings,
+							showAgentUpdateNotices: false,
 						});
 						setAgentUpdate(null);
 					}}

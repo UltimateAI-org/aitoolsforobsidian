@@ -98,6 +98,10 @@ export interface AgentClientPluginSettings {
 	// back (e.g. after a broken agent release) aren't re-nagged every time
 	// the chat view opens; a newer version shows the banner again.
 	agentUpdateDismissed: Record<string, string>;
+	// Master switch for the agent-update banner in the chat view. Off means
+	// no banner for any version; settings → System status still shows
+	// installed vs latest with an Update button.
+	showAgentUpdateNotices: boolean;
 	// Global API configuration
 	apiKey: string;
 	baseUrl: string;
@@ -170,6 +174,7 @@ const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	lastSeenPluginVersion: "",
 	compatWarningDismissed: {},
 	agentUpdateDismissed: {},
+	showAgentUpdateNotices: true,
 	apiKey: "",
 	baseUrl: "https://chat.obsidianaitools.com",
 	model: "MiniMax-M2.1",
@@ -782,6 +787,10 @@ export default class AgentClientPlugin extends Plugin {
 				!Array.isArray(rawSettings.agentUpdateDismissed)
 					? (rawSettings.agentUpdateDismissed as Record<string, string>)
 					: DEFAULT_SETTINGS.agentUpdateDismissed,
+			showAgentUpdateNotices:
+				typeof rawSettings.showAgentUpdateNotices === "boolean"
+					? rawSettings.showAgentUpdateNotices
+					: DEFAULT_SETTINGS.showAgentUpdateNotices,
 			// Global API configuration
 			apiKey:
 				typeof rawSettings.apiKey === "string"
