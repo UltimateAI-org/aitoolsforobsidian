@@ -1022,6 +1022,20 @@ export class AgentClientSettingTab extends PluginSettingTab {
 		this.renderEnvVersionRow(containerEl, "Node.js", "node");
 		this.renderEnvVersionRow(containerEl, "npm", "npm");
 
+		new Setting(containerEl)
+			.setName("Agent update notices")
+			.setDesc(
+				"Show a banner in the chat when a newer agent version is available. The version rows below still show updates either way.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showAgentUpdateNotices)
+					.onChange(async (value) => {
+						this.plugin.settings.showAgentUpdateNotices = value;
+						await this.saveAndNotify();
+					}),
+			);
+
 		// Agent rows — Codex omitted intentionally until it's general-use ready.
 		const knownAgents: Array<[string, string]> = [
 			[this.plugin.settings.claude.id, this.plugin.settings.claude.displayName || "Claude Agent"],
