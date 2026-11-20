@@ -37,6 +37,14 @@ const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 /** Maximum number of images per message */
 const MAX_IMAGE_COUNT = 10;
 
+/**
+ * Agent config options never shown as chips. claude-agent-acp offers
+ * "ultracode" (dynamic workflows on every task — slower, costlier) and
+ * "agent" (swap the main-thread persona); neither suits note work, so
+ * keep the bar to mode / model / effort.
+ */
+const HIDDEN_CONFIG_OPTION_IDS = new Set(["ultracode", "agent"]);
+
 /** Supported image MIME types (whitelist) */
 const SUPPORTED_IMAGE_TYPES = [
 	"image/png",
@@ -81,7 +89,13 @@ export interface ChatInputProps {
 		images?: ImagePromptContent[],
 	) => Promise<void>;
 	/** Callback to queue a message while the agent is streaming */
-	onQueueMessage: (content: string, images?: ImagePromptContent[]) => void;
+	/** `hold` queues even when idle (session still starting); the queue is
+	 *  flushed once the session is ready. */
+	onQueueMessage: (
+		content: string,
+		images?: ImagePromptContent[],
+		hold?: boolean,
+	) => void;
 	/** Messages queued to send when the current turn finishes */
 	queuedMessages: QueuedMessage[];
 	/** Callback to remove a queued message (chip dismissed) */
@@ -422,8 +436,8 @@ export function ChatInput({
 	/**
 	 * Fire a quick prompt (from a chip or the `!` menu).
 	 * Send-immediately prompts go straight out — queued if the agent is
-	 * streaming. Insert-mode prompts (and any prompt fired while the
-	 * session isn't ready to send) land in the composer for editing.
+	 * streaming, or held in the queue until a starting session (new tab)
+	 * is ready. Insert-mode prompts land in the composer for editing.
 	 */
 	const fireQuickPrompt = useCallback(
 		(quickPrompt: QuickPromptSetting) => {
@@ -431,15 +445,17 @@ export function ChatInput({
 			setHintText(null);
 			setCommandText("");
 
-			const canSend = isSessionReady && !isRestoringSession;
-			if (!quickPrompt.sendImmediately || !canSend) {
+			if (!quickPrompt.sendImmediately) {
 				setInputValue(quickPrompt.prompt);
 				window.setTimeout(() => textareaRef.current?.focus(), 0);
 				return;
 			}
 
 			setInputValue("");
-			if (isSending) {
+			const canSend = isSessionReady && !isRestoringSession;
+			if (!canSend) {
+				onQueueMessage(quickPrompt.prompt, undefined, true);
+			} else if (isSending) {
 				onQueueMessage(quickPrompt.prompt);
 			} else {
 				void onSendMessage(quickPrompt.prompt);
@@ -807,13 +823,15 @@ export function ChatInput({
 	// fed by the session's modes/models state; skip their config-option twins
 	// only while that dedicated chip is actually shown. claude-agent-acp no
 	// longer sends the legacy `models` state, so its model picker exists only
-	// as a config option. Also skip anything with nothing to choose between.
+	// as a config option. Also skip anything with nothing to choose between,
+	// and options deliberately hidden (HIDDEN_CONFIG_OPTION_IDS).
 	const showModeChip = !!modes && modes.availableModes.length > 1;
 	const showModelChip = !!models && models.availableModels.length > 1;
 	const visibleConfigOptions = useMemo(
 		() =>
 			(configOptions ?? []).filter(
 				(option) =>
+					!HIDDEN_CONFIG_OPTION_IDS.has(option.id) &&
 					!(option.category === "mode" && showModeChip) &&
 					!(option.category === "model" && showModelChip) &&
 					option.options.length > 1,

@@ -20,6 +20,8 @@ export interface CompatWarningBannerProps {
 	nodePath: string;
 	/** Persist a dismissal for this installed version (won't show again). */
 	onDismiss: () => void;
+	/** Turn untested-version warnings off entirely ("Don't show again"). */
+	onDisable: () => void;
 	/** Clear the banner after a rollback has been kicked off. */
 	onResolved: () => void;
 }
@@ -38,6 +40,7 @@ export function CompatWarningBanner({
 	maxTestedVersion,
 	nodePath,
 	onDismiss,
+	onDisable,
 	onResolved,
 }: CompatWarningBannerProps) {
 	const [rollingBack, setRollingBack] = useState(false);
@@ -107,6 +110,14 @@ export function CompatWarningBanner({
 					disabled={rollingBack}
 				>
 					Dismiss
+				</button>
+				<button
+					className="obsidianaitools-compat-warning-dismiss"
+					onClick={onDisable}
+					disabled={rollingBack}
+					title="Hide untested-version warnings for all versions. Turn back on in Settings → System status."
+				>
+					Don't show again
 				</button>
 			</div>
 		</div>

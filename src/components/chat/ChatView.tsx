@@ -652,18 +652,30 @@ function ChatComponent({
 	 * handleSendMessage.
 	 */
 	const handleQueueMessage = useCallback(
-		(content: string, images?: ImagePromptContent[]) => {
-			chat.queueMessage(content, {
-				activeNote: autoMention.activeNote,
-				vaultBasePath:
-					(plugin.app.vault.adapter as VaultAdapterWithBasePath)
-						.basePath || "",
-				isAutoMentionDisabled: autoMention.isDisabled,
-				images,
-			});
+		(content: string, images?: ImagePromptContent[], hold?: boolean) => {
+			chat.queueMessage(
+				content,
+				{
+					activeNote: autoMention.activeNote,
+					vaultBasePath:
+						(plugin.app.vault.adapter as VaultAdapterWithBasePath)
+							.basePath || "",
+					isAutoMentionDisabled: autoMention.isDisabled,
+					images,
+				},
+				hold,
+			);
 		},
 		[chat, autoMention, plugin],
 	);
+
+	// Messages held while the session was starting (e.g. a send-immediately
+	// quick prompt fired on a fresh tab) go out once it's ready to send.
+	const canSendNow = isSessionReady && !sessionHistory.loading;
+	const { flushQueue } = chat;
+	useEffect(() => {
+		if (canSendNow) flushQueue();
+	}, [canSendNow, flushQueue]);
 
 	const handleStopGeneration = useCallback(async () => {
 		logger.log("Cancelling current operation...");
@@ -1000,6 +1012,7 @@ function ChatComponent({
 					// above maxTested, and the user hasn't dismissed it yet for
 					// this specific version (persisted across restarts).
 					if (
+						settings.showCompatWarnings &&
 						info.isAboveTestedVersion &&
 						info.installed &&
 						info.maxTestedVersion
@@ -1042,6 +1055,7 @@ function ChatComponent({
 		settings.nodePath,
 		settings.agentUpdateDismissed,
 		settings.showAgentUpdateNotices,
+		settings.showCompatWarnings,
 	]);
 
 	// ============================================================
@@ -1258,6 +1272,15 @@ function ChatComponent({
 								[compatWarning.agentId]:
 									compatWarning.installed,
 							},
+						});
+						setCompatWarning(null);
+					}}
+					onDisable={() => {
+						// Turn the warning off for all versions; re-enable
+						// under Settings → System status
+						void plugin.saveSettingsAndNotify({
+							...plugin.settings,
+							showCompatWarnings: false,
 						});
 						setCompatWarning(null);
 					}}

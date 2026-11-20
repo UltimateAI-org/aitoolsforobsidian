@@ -1036,6 +1036,20 @@ export class AgentClientSettingTab extends PluginSettingTab {
 					}),
 			);
 
+		new Setting(containerEl)
+			.setName("Untested version warnings")
+			.setDesc(
+				"Show a banner in the chat when the installed agent is newer than the version this plugin was tested with. Roll back stays available on the version rows below.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showCompatWarnings)
+					.onChange(async (value) => {
+						this.plugin.settings.showCompatWarnings = value;
+						await this.saveAndNotify();
+					}),
+			);
+
 		// Agent rows — Codex omitted intentionally until it's general-use ready.
 		const knownAgents: Array<[string, string]> = [
 			[this.plugin.settings.claude.id, this.plugin.settings.claude.displayName || "Claude Agent"],

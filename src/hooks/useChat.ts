@@ -83,9 +83,17 @@ export interface UseChatReturn {
 
 	/**
 	 * Queue a message to send when the current turn settles.
-	 * Sends immediately if nothing is in flight.
+	 * Sends immediately if nothing is in flight, unless `hold` is set
+	 * (session still starting — sent by `flushQueue` once ready).
 	 */
-	queueMessage: (content: string, options: SendMessageOptions) => void;
+	queueMessage: (
+		content: string,
+		options: SendMessageOptions,
+		hold?: boolean,
+	) => void;
+
+	/** Send the first queued message if no turn is in flight. */
+	flushQueue: () => void;
 
 	/**
 	 * Remove a queued message by id (user dismissed the chip).
@@ -622,10 +630,17 @@ export function useChat(
 	 * Sends immediately if nothing is in flight (the turn may have settled
 	 * between the UI reading isSending and this call — without an upcoming
 	 * flush the message would sit in the queue forever).
+	 *
+	 * `hold` queues even when nothing is in flight: used while the session
+	 * is still starting (new tab), drained by `flushQueue` once it's ready.
 	 */
 	const queueMessage = useCallback(
-		(content: string, options: SendMessageOptions): void => {
-			if (!inFlightSendRef.current) {
+		(
+			content: string,
+			options: SendMessageOptions,
+			hold = false,
+		): void => {
+			if (!hold && !inFlightSendRef.current) {
 				void sendMessageRef.current?.(content, options);
 				return;
 			}
@@ -637,6 +652,20 @@ export function useChat(
 		},
 		[],
 	);
+
+	/**
+	 * Send the first queued message if no turn is in flight. Called when the
+	 * session becomes ready, so messages held during startup go out; later
+	 * items drain through sendMessage's settle path as usual.
+	 */
+	const flushQueue = useCallback((): void => {
+		if (inFlightSendRef.current) return;
+		const next = queuedRef.current[0];
+		if (!next) return;
+		queuedRef.current = queuedRef.current.slice(1);
+		setQueuedMessages(queuedRef.current);
+		void sendMessageRef.current?.(next.content, next.options);
+	}, []);
 
 	/**
 	 * Remove a queued message by id.
@@ -934,6 +963,7 @@ export function useChat(
 		errorInfo,
 		queuedMessages,
 		queueMessage,
+		flushQueue,
 		removeQueuedMessage,
 		cancelWaitingSend,
 		sendMessage,
