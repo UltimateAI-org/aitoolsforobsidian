@@ -102,6 +102,10 @@ export interface AgentClientPluginSettings {
 	// no banner for any version; settings → System status still shows
 	// installed vs latest with an Update button.
 	showAgentUpdateNotices: boolean;
+	// Master switch for the "newer than tested version" warning banner. Off
+	// means no warning for any version; settings → System status still offers
+	// Roll back on the version row.
+	showCompatWarnings: boolean;
 	// Global API configuration
 	apiKey: string;
 	baseUrl: string;
@@ -175,6 +179,7 @@ const DEFAULT_SETTINGS: AgentClientPluginSettings = {
 	compatWarningDismissed: {},
 	agentUpdateDismissed: {},
 	showAgentUpdateNotices: true,
+	showCompatWarnings: true,
 	apiKey: "",
 	baseUrl: "https://chat.obsidianaitools.com",
 	model: "MiniMax-M2.1",
@@ -791,6 +796,10 @@ export default class AgentClientPlugin extends Plugin {
 				typeof rawSettings.showAgentUpdateNotices === "boolean"
 					? rawSettings.showAgentUpdateNotices
 					: DEFAULT_SETTINGS.showAgentUpdateNotices,
+			showCompatWarnings:
+				typeof rawSettings.showCompatWarnings === "boolean"
+					? rawSettings.showCompatWarnings
+					: DEFAULT_SETTINGS.showCompatWarnings,
 			// Global API configuration
 			apiKey:
 				typeof rawSettings.apiKey === "string"
